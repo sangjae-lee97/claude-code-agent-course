@@ -58,7 +58,8 @@ Notebook의 STEP 04~07 샘플 데이터 셀은 과거 프로토타입 기록입�
 
 - workflow `AX Job Agent`: 수동 실행(`workflow_dispatch`) + 주간 자동 실행(`cron: "0 0 * * 1"` = 매주 월요일 09:00 KST)
 - `python main.py` 성공 뒤 history CSV 하나만 자동 commit/push (`chore: update AX job history`)
-- 파일 준비·정적 검증 완료, push 및 GitHub 검증 대기
+- 파일 준비·정적 검증 완료, 첫 수동 실행에서 history 자동 commit(history CSV 한 파일) 확인
+- 출력 정합성 보완 완료 (Slack·Gmail·보고서가 같은 이번 실행 결과 사용, 과거 STEP 10 숫자는 보고서 부록에만) — git pull 후 push 및 GitHub 최종 검증 대기
 
 ### 아직 하지 않음
 

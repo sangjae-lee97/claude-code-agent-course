@@ -20,8 +20,8 @@ from src.crawler import collect_jobs
 from src.preprocess import clean_jobs, find_new_jobs, update_history
 from src.analyzer import analyze_jobs, filter_relevant_jobs
 from src.gemini_client import summarize_with_gemini
-from src.reporter import create_report, save_report
-from src.notifier import build_slack_message, send_slack, send_email
+from src.reporter import build_run_summary, create_report, save_report
+from src.notifier import build_slack_message, build_email_text, send_slack, send_email
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ENV_PATH = PROJECT_ROOT / ".env"
@@ -35,8 +35,9 @@ GEMINI_MAX_JOBS = 2
 
 ENV_NAMES = ["GEMINI_API_KEY", "SLACK_WEBHOOK_URL", "GMAIL_USER", "GMAIL_APP_PASSWORD"]
 
-# STEP 10에서 사람이 검증한 결과 (에스코어 1건 기준)
-VALIDATION_SUMMARY = {
+# STEP 10 개발 과정의 과거 검증 기록 (에스코어 당시 응답 1건 기준)
+# 이번 실행의 Gemini 응답을 검증한 값이 아니므로, Markdown 보고서의 "과거 기록" 부록에만 사용한다
+HISTORICAL_VALIDATION_SUMMARY = {
     "target": "에스코어 / AX 컨설턴트 채용",
     "scope": "에스코어 1건",
     "total_items": 15,
@@ -104,26 +105,22 @@ def main(dry_run=False):
         gemini_results = summarize_with_gemini(filtered_df, client, model=GEMINI_MODEL, max_jobs=GEMINI_MAX_JOBS)
         success = [r for r in gemini_results if r["gemini_summary"]]
         print(f"[7] Gemini 요약: 호출 {len(gemini_results)}회, 성공 {len(success)}건")
+        # 실패 원인 전문은 실행 로그에만 남긴다 (Slack·Gmail에는 짧게 줄인 문구만 표시)
+        for r in gemini_results:
+            if r["error"]:
+                print(f"    - {r['company_name']} 실패: {r['error']}")
 
-    # 보고서에 실을 Gemini 결과: 성공한 첫 번째 응답
-    gemini_summary = next((dict(r, model=GEMINI_MODEL) for r in gemini_results if r["gemini_summary"]), None)
-    extra_limitations = [f"{r['company_name']} 공고의 Gemini 호출은 실패했습니다. ({r['error']})"
-                         for r in gemini_results if r["error"]]
+    # 이번 실행 요약 — 보고서·Slack·Gmail이 모두 이 값만 사용한다 (알림 대상도 이번 수집 전체)
+    run_summary = build_run_summary(report_jobs_df, analysis, gemini_results, HISTORICAL_VALIDATION_SUMMARY)
 
-    # [8] 보고서 문자열 생성
-    report_text = create_report(
-        report_jobs_df,
-        analysis,
-        gemini_summary=gemini_summary,
-        validation_summary=VALIDATION_SUMMARY,
-        extra_limitations=extra_limitations,
-    )
+    # [8] 보고서 문자열 생성 (과거 STEP 10 기록은 부록으로만 표시)
+    report_text = create_report(run_summary, historical_validation=HISTORICAL_VALIDATION_SUMMARY)
     print(f"[8] 보고서 문자열 생성 완료: {len(report_text)}자")
 
-    # [9] Slack 메시지 생성 — 알림 대상도 이번 수집 전체
-    notify_jobs_df = current_df
-    slack_message = build_slack_message(notify_jobs_df, VALIDATION_SUMMARY)
-    print(f"[9] Slack 메시지 생성 완료: {len(slack_message)}자")
+    # [9] Slack 메시지 · Gmail 본문 생성
+    slack_message = build_slack_message(run_summary)
+    email_text = build_email_text(run_summary)
+    print(f"[9] Slack 메시지 생성 완료: {len(slack_message)}자 / Gmail 본문 생성 완료: {len(email_text)}자")
 
     result = {
         "dry_run": dry_run,
@@ -135,6 +132,7 @@ def main(dry_run=False):
         "analysis": analysis,
         "report_length": len(report_text),
         "slack_length": len(slack_message),
+        "email_length": len(email_text),
         "gemini_calls": len(gemini_results),
         "slack_sent": False,
         "email_sent": False,
@@ -160,7 +158,7 @@ def main(dry_run=False):
 
     # [12] Gmail 발송 (인증정보가 없으면 생략)
     if env["GMAIL_USER"] and env["GMAIL_APP_PASSWORD"]:
-        send_email(report_text, env["GMAIL_USER"], env["GMAIL_APP_PASSWORD"])
+        send_email(email_text, env["GMAIL_USER"], env["GMAIL_APP_PASSWORD"])
         result["email_sent"] = True
         print("[12] Gmail 발송: 성공")
     else:

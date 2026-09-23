@@ -26,7 +26,7 @@ STEP 14 함수화                              → DONE  (src/ 7개 파일, 로�
 STEP 15 main.py 통합                        → DONE  (main.py 생성, main(dry_run=True) 흐름 검증, 외부 요청 0회)
 STEP 16 로컬 전체 실행 검증                  → DONE  (python main.py 1회 성공, Slack·Gmail 실제 도착 사용자 확인)
 STEP 17 GitHub Actions 수동 실행             → DONE  (Run workflow 성공, Slack·Gmail 실제 도착 사용자 확인)
-STEP 18 GitHub Actions 주간 실행             → IN_PROGRESS  (schedule 및 history persistence 준비 완료, push 및 GitHub 검증 대기)
+STEP 18 GitHub Actions 주간 실행             → IN_PROGRESS  (schedule·history persistence 준비, 운영 출력 정합성 보완 완료 — push 및 GitHub 최종 검증 대기)
 ```
 
 **현재 공식 진행 위치: STEP 18 GitHub Actions 주간 실행 (IN_PROGRESS)**
@@ -42,8 +42,14 @@ STEP 18 진행 상황:
 - src/reporter.py 8장 기본 문구 → "GitHub Actions 주간 자동 실행 운영 (매주 월요일 09:00 KST), 실행 결과는 Slack / Gmail에서 확인"
 - Notebook STEP 18 정적 검증 통과, 임시 Git 저장소로 history 저장 step 사전 시험 통과 (외부 요청 0회)
 
+진행 중 확인된 사항:
+- 사용자가 push(6af850e) 후 수동 실행 → 봇 commit adbe833 "chore: update AX job history" 생성,
+  변경 파일은 chapter11/ax-job-agent/data/processed/jobs_history.csv 하나뿐 (git show로 확인)
+- STEP 18 최종화 전에 Slack/Gmail 출력 정합성 문제 발견 → 보완 완료 (아래 상세 기록 참고, 새 STEP 번호 없음)
+
 남은 작업 (사용자):
-- 변경 사항 push → GitHub Actions에서 "AX Job Agent" workflow에 schedule 표시 확인
+- 로컬이 origin/main보다 1 commit 뒤처짐(봇 commit) → git pull 후 보완 내용 push
+- GitHub Actions에서 "AX Job Agent" workflow에 schedule 표시 확인
 - 수정된 workflow를 수동으로 1회 실행 → 전체 성공, Persist history step 성공, Slack·Gmail 도착,
   main에 "chore: update AX job history" commit 생성(history CSV 한 파일만), 비밀값 노출 없음, 반복 실행 없음 확인
 - 확인 후 STEP 18 DONE → 공식 STEP 01 ~ 18 전체 완료
@@ -632,6 +638,41 @@ STEP 18에서 판단할 사항 (history / report 유지):
 - 향후 개선 후보 (이번 STEP에서 구현하지 않음): 신규 공고 0건이면 알림 생략, 신규 공고만 Gemini 요약, 신규 공고만 Slack/Gmail
 
 상태: schedule 및 history persistence 준비 완료, push 및 GitHub 검증 대기
+
+#### STEP 18 최종화 전 보완 — 운영 출력 정합성 (새 STEP 아님)
+
+발견한 문제:
+- Slack이 main.py의 고정값 `VALIDATION_SUMMARY`(STEP 10 과거 에스코어 검증: 일치 7 / 의미상 일치 3 / 불일치 0 / 검증 불가 5)를
+  "Gemini 검증"이라는 이름으로 표시 → 이번 실행 Gemini 응답의 검증 결과처럼 보였음
+- Gmail은 이번 실행 Gemini 응답을 "검증 전"으로 정확히 표시했지만, 보고서 Markdown 원문을 그대로 보내 `#`, `**`, 표, `[링크](...)` 기호가 보였음
+- Gmail·보고서에 503 오류의 Python 예외 dict 전문이 그대로 들어갔음
+- → 같은 실행에서 Slack과 Gmail이 서로 다른 의미를 전달
+
+보완 내용 (수정 파일: `src/reporter.py`, `src/notifier.py`, `main.py` — gemini_client·analyzer·crawler·preprocess 수정 없음):
+- `reporter.build_run_summary(jobs_df, analysis, gemini_results, historical_validation)` 추가 — 이번 실행 사실을 한 번만 정리:
+  공고·분석, AX 필터 결과, 공고별 Gemini 성공/실패(`gemini_items`), 호출·성공·실패 수, 검증 상태("검증 전"/"호출 없음"),
+  검증 상태 문장, 제한 사항 9개 → **보고서·Slack·Gmail이 모두 이 run_summary만 사용**
+- `reporter.short_gemini_error()`: 알림에는 "503 UNAVAILABLE — Gemini 서버 일시 과부하"처럼 짧게 표시 (원본 오류 전문은 실행 로그에만 출력)
+- `main.py`: `VALIDATION_SUMMARY` → `HISTORICAL_VALIDATION_SUMMARY`로 이름 변경, 운영 Slack/Gmail에는 전달하지 않고 보고서 부록에서만 사용
+- Slack (`build_slack_message(run_summary)`): 공고별 상세 정보(사용자 확정 형식) 유지 → `*Gemini 실행 결과*`(호출/성공/실패, 공고별 성공·실패)
+  → `*Gemini 검증 상태*`(이번 응답 검증 전, 상세 정보 확인 불가, STEP 10은 과거 기록) → `*제한 사항*` — 과거 7/3/0/5 숫자 제거
+- Gmail (`build_email_text(run_summary)`, 새 함수): Markdown 대신 Plain Text 형식
+  (제목 밑줄 `====`/`----`, 1. 분석 기준 / 2. 공고별 상세 정보 / 3. Gemini 실행 결과(성공 응답·실패) / 4. Gemini 검증 상태 / 5. 제한 사항),
+  Gemini 응답 속 `**`·`#`도 제거. `send_email(email_text, ...)`은 받은 본문을 그대로 발송
+- Markdown 보고서 (`create_report(run_summary, historical_validation=...)`): 5장 "Gemini 실행 결과"(성공 응답 전부), 6장 "Gemini 검증 상태",
+  7장 제한 사항(공통 목록), 8장 다음 단계, 부록 "## 9. 과거 Gemini 검증 기록 — STEP 10 (참고)" + "이번 실행 결과의 검증값이 아닙니다"
+- STEP 10 기록 자체는 이 문서와 Notebook에 그대로 보존
+
+검증 (외부 요청 0회 — 네트워크 차단, 가짜 Gemini 결과 사용, history CSV 읽기만, 보고서 파일 덮어쓰기 없음):
+- CASE A (2건 성공) / CASE B (1건 성공 + 실제 형식의 503 오류 1건) 모두 15~16개 항목 통과:
+  Slack·Gmail에 과거 7/3/0/5 없음, 보고서 본문(1~8장)에도 없음(부록에만), Slack·Gmail·보고서의 호출/성공/실패 수 동일,
+  세 곳 모두 "검증 전", Gmail에 Markdown 기호 없음, 503 raw dict 없음(짧은 문구만), 공고 URL 5개, 지원 시작/마감일, 제한 사항·검증 상태 문장 동일
+- 문자 수: CASE A 보고서 3549 / Slack 1881 / Gmail 2595, CASE B 보고서 3482 / Slack 1907 / Gmail 2527
+- `main(dry_run=True)` 성공 (보고서 3245 / Slack 1824 / Gmail 2272자), 네트워크·외부/저장 함수 호출 0회
+- history CSV·`reports/ax_job_report.md` 체크섬 변경 없음
+
+참고:
+- `create_report()`, `build_slack_message()`, `send_email()`의 인자가 바뀌었다. Notebook STEP 14 검증 셀은 이전 시그니처로 작성된 과거 기록이라 그대로 다시 실행하면 오류가 난다. (STEP 15 셀의 `main(dry_run=True)`는 그대로 동작)
 
 ### 실데이터 흐름 남은 특이사항
 
