@@ -75,11 +75,12 @@ GitHub Actions
 
 ```text
 chapter11/
-└── ai-job-agent/
+└── ax-job-agent/
     ├── docs/
     │   ├── START_HERE.md
     │   ├── PROJECT_SPEC.md
-    │   └── PROGRESS.md
+    │   ├── PROGRESS.md
+    │   └── DEVELOPMENT_RULES.md
     ├── notebooks/
     │   └── ax_job_pipeline.ipynb
     ├── src/
@@ -104,6 +105,8 @@ chapter11/
 주의:
 - 이 구조를 처음부터 전부 만들지 않습니다.
 - 필요해질 때 하나씩 추가합니다.
+- 현재 존재: `docs/`, `notebooks/`, `data/processed/jobs_history.csv`, `.env`(Git 제외), `.env.example`, `.gitignore`
+- 아직 없음: `src/`, `data/raw/`, `reports/`, `main.py`, `requirements.txt`, `README.md`
 
 ## 5. 데이터 정의
 
@@ -111,19 +114,28 @@ DataFrame의 한 행:
 
 > 채용공고 1건
 
-초기 컬럼:
+컬럼 (9개):
 
-| 컬럼 | 의미 |
-|---|---|
-| company_name | 회사명 |
-| job_title | 공고 제목 |
-| career | 경력 조건 |
-| location | 근무 지역 |
-| posted_date | 등록일 |
-| closing_date | 마감일 |
-| job_url | 공고 URL |
-| search_keyword | 공고를 발견한 검색어 |
-| collected_at | 수집 시각 |
+| 컬럼 | 의미 | 현재 실제 수집 출처 (JobKorea 검색 결과 페이지) |
+|---|---|---|
+| company_name | 회사명 | 공고 카드 HTML |
+| job_title | 공고 제목 | 공고 카드 HTML |
+| career | 경력 조건 | 공고 카드 HTML (화면 문구 그대로, 예: `경력3년↑`) |
+| location | 근무 지역 | 공고 카드 HTML (화면 문구 그대로, 예: `서울 강남구 외 1`) |
+| posted_date | **지원 제출 시작일** | Next.js script JSON의 `applicationPeriod.start` (날짜 부분, 예: `2026-09-21`) |
+| closing_date | **지원 제출 마감일** | Next.js script JSON의 `applicationPeriod.end` (날짜 + 시:분, 예: `2026-10-01 23:00`) |
+| job_url | 공고 URL | 제목 링크 `href`에서 추적용 `?` 파라미터를 제거한 기본 주소 |
+| search_keyword | 공고를 발견한 검색어 | 수집 시 사용한 검색어 (예: `ax`) |
+| collected_at | 수집 시각 | 페이지를 받아 온 시각 |
+
+날짜 컬럼 관련 확정 사항:
+- 이 프로젝트에서 `posted_date`는 **공고 등록일이 아니라 지원 제출 시작일**을 의미한다.
+- 공고 JSON의 `createdAt`(사이트에 공고가 등록된 시각)은 사용하지 않는다. (지원 시작일과 다를 수 있음)
+- 공고 카드와 JSON은 순서가 아니라 공고 ID(`job_url` 끝 숫자)로 매칭한다.
+- 원본 날짜 문자열은 보존하고, 날짜 변환은 필요할 때 별도 변수로 수행한다.
+- 일부 공고의 마감일이 `2070-01-01`처럼 매우 먼 날짜일 수 있다. 의미(상시채용 여부)는 아직 검증하지 않았으므로 원본 값을 그대로 둔다.
+- 컬럼명 `posted_date` / `closing_date`는 현재 유지한다.
+  향후 리팩터링 시 `application_start_date` / `application_end_date`로 이름을 바꿀 수 있다.
 
 초기에는 검색 결과 페이지에서 안정적으로 얻을 수 있는 필드부터 사용합니다.
 
@@ -172,6 +184,8 @@ Gemini가 담당하는 내용:
 
 초기에는 DB 대신 CSV / JSON으로 충분히 구현합니다.
 
+현재 구현: 이력 파일 `data/processed/jobs_history.csv` (`job_url` 기준으로 누적, 중복 제거)
+
 ## 8. 크롤링 원칙
 
 처음부터 대량 수집하지 않습니다.
@@ -198,32 +212,30 @@ Gemini가 담당하는 내용:
 
 자동 요청이 어렵거나 제한되면 샘플 HTML / CSV로 파이프라인 학습을 계속합니다.
 
+현재 실제 수집 방식 (STEP 04 / 07-A):
+- URL: `https://www.jobkorea.co.kr/Search/?stext=ax&tabType=recruit` (검색어 1개, 페이지 1개, 최대 5건)
+- 기본 요청이 보안정책 페이지를 받으면, 일반 브라우저 User-Agent 헤더로 **1회만** 다시 요청한다.
+- 보안 우회 기법, CAPTCHA 우회, 프록시/IP 변경, 반복 재시도는 사용하지 않는다.
+- HTTP 200만 보고 성공으로 판단하지 않고, title과 본문 문자열로 실제 검색 결과인지 확인한다.
+
 ## 9. Notebook 작성 규칙
 
-모든 STEP에서 같은 패턴을 사용합니다.
+모든 STEP에서 아래 **3셀 세트**를 하나의 작업 단위로 사용합니다. (상세 규칙: `docs/DEVELOPMENT_RULES.md`)
 
-### Markdown Cell — 작업 계획
+### 1. 작업 계획 — Markdown Cell
 
 - 이번 단계의 목적
 - 확인할 항목
 - 이번 단계에서 하지 않을 것
 - 완료 조건
 
-### Code Cell — 실행
+### 2. 실제 코드 — Code Cell
 
 - 현재 STEP에 필요한 최소 코드
+- **확인 출력도 이 Cell 안에서 함께 수행** (별도의 "확인용 Code Cell"을 두지 않음)
+  - 예: shape, head, status code, 결측, 중복, 값 분포
 
-### Code Cell — 확인
-
-예:
-- shape
-- head
-- status code
-- 결측
-- 중복
-- 값 분포
-
-### Markdown Cell — 결과 해석
+### 3. 실행 결과 해석 / 분석 / 요약 — Markdown Cell
 
 - 실행 성공 여부
 - 확인한 사실
@@ -258,7 +270,12 @@ GMAIL_APP_PASSWORD
 .env
 .venv/
 __pycache__/
+.ipynb_checkpoints/
 ```
+
+- `.env.example`(값이 비어 있는 샘플)은 Git에 포함한다.
+- Notebook 출력에는 키 값, 키 일부, 키 길이를 표시하지 않고 "설정됨 / 미설정"만 표시한다.
+- Gemini SDK: 공식 패키지 `google-genai` (`from google import genai`) 사용. 구버전 `google-generativeai`는 사용하지 않는다.
 
 ## 11. 운영 코드 전환
 

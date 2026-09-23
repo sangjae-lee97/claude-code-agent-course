@@ -18,70 +18,72 @@ Markdown 보고서를 생성하여 Slack / Gmail로 전달하고,
 - Human Validator: 사용자가 Notebook 셀과 Terminal 결과를 직접 확인
 - 원칙: 한 번에 전체 프로그램을 만들지 않고 STEP 단위로 검증
 
+## 프로젝트 위치
+
+```text
+저장소: sangjae-lee97/claude-code-agent-course (브랜치 main)
+프로젝트 루트: chapter11/ax-job-agent
+Notebook: notebooks/ax_job_pipeline.ipynb
+```
+
 ## 현재 진행 상태
 
-### 완료
-- GitHub 원본 저장소 Fork
-- Fork 저장소 Local Clone
-- `origin` 확인
-- `upstream` 연결
-- 별도 브랜치 생성은 생략하고 `main`에서 진행하기로 결정
-- 프로젝트 폴더 생성
-- Python 가상환경 `.venv` 생성
-- 가상환경 활성화 확인
-- Python 3.14.6 확인
-- 필수 패키지 설치
-  - pandas
-  - requests
-  - beautifulsoup4
-  - jupyter
-  - python-dotenv
-- `ipykernel` 설치
-- Jupyter 커널 `Python (ax-job-agent)` 등록
+### 완료: STEP 01 ~ 11 (DONE)
+
+- STEP 00 환경 준비 (Fork/Clone, `.venv`, Python 3.14.6, 패키지, 커널 `Python (ax-job-agent)`)
+- STEP 01 개발환경 확인
+- STEP 02 수집 데이터 명세 (컬럼 9개)
+- STEP 03 채용공고 페이지 접근 테스트
+- STEP 04 소량 데이터 수집 — 실제 JobKorea `ax` 검색 결과 5건
+- STEP 05 DataFrame 기본 구조 확인
+- STEP 06 전처리 / 중복 제거
+- STEP 07 신규 공고 판별 (`data/processed/jobs_history.csv`)
+- STEP 08 기본 분석 / 관련 공고 필터링
+- STEP 09 Gemini API 연동 — `.env`/`GEMINI_API_KEY`/`google-genai` 준비, 연결 테스트, 실제 공고 2건 전달
+  (에스코어 응답 수신, GS리테일은 503 서버 과부하로 실패)
+- STEP 10 Gemini 결과 검증 — 에스코어 응답 1건을 원본 CSV와 비교 (15개 항목, 불일치 0)
+- STEP 11 Markdown 보고서 생성 — `reports/ax_job_report.md`
+
+Notebook의 `STEP 07-A` ~ `07-I` 셀은 위 STEP 04~09의 **세부 검증 기록**입니다.
+공식 STEP과의 매핑은 `docs/PROGRESS.md`의 "개발 과정 세부 검증 기록"을 참고하세요.
+Notebook의 STEP 04~07 샘플 데이터 셀은 과거 프로토타입 기록입니다.
+
+### 현재: STEP 12 Slack 발송 (NOT_STARTED)
 
 ### 아직 하지 않음
-- `notebooks/ax_job_pipeline.ipynb` 생성
-- STEP 01 환경 확인 셀 작성 및 실행
-- 실제 크롤링
-- DataFrame 생성
-- 전처리
-- 신규 공고 판별
-- 기본 분석
-- Gemini API 연동
-- 보고서 생성
-- Slack / Gmail 연동
-- `main.py` 통합
-- GitHub Actions
+
+- STEP 12 Slack 발송 — **다음 단계, 아직 시작하지 않음**
+- STEP 13 Gmail 발송
+- STEP 14~16 함수화 / `main.py` 통합 / 로컬 전체 실행
+- STEP 17~18 GitHub Actions
 
 ## 지금 바로 해야 할 다음 작업
 
-**STEP 01 — 개발환경 확인용 Notebook 생성**
+**STEP 12 — Slack 발송**
 
-생성할 파일:
+완료 기준 (STEP 진행표 기준):
 
 ```text
-notebooks/ax_job_pipeline.ipynb
+실제 Slack 채널에 도착한 것을 확인한다.
+(발송 대상 보고서: reports/ax_job_report.md)
 ```
-
-이번 STEP에서는 아래만 수행합니다.
-
-1. 현재 프로젝트 구조 확인
-2. `notebooks/` 폴더 생성
-3. Notebook 생성
-4. Python 버전 / OS 확인
-5. pandas / requests / BeautifulSoup import 확인
-6. VS Code에서 커널을 `Python (ax-job-agent)`로 선택
-7. 모든 셀을 직접 실행
-8. 에러가 없는지 사람이 확인
 
 ### 이번 STEP에서 하면 안 되는 것
 
-- 실제 크롤링
-- Gemini API 호출
+- STEP 13 이후 작업 (Gmail 발송 등)
+- API Key 출력 (값, 일부, 길이 모두)
+- 불필요한 반복 API 호출
 - Slack / Gmail 연동
 - `main.py` 작성
 - GitHub Actions 작성
 - 여러 STEP을 한 번에 구현
+
+### 실행 시 주의
+
+- 실데이터 변수(`df_unique_jobs` 등)는 STEP 07-A → 07-B → 07-C 셀을 실행해야 메모리에 생깁니다.
+  (07-A는 실행할 때마다 검색 페이지 요청 2회가 발생)
+- STEP 07-D 셀은 실행할 때마다 `jobs_history.csv`를 다시 저장합니다.
+- Gemini 호출 셀은 실행할 때마다 API가 호출됩니다.
 
 ## 작업 재개 체크리스트
 
@@ -92,7 +94,7 @@ notebooks/ax_job_pipeline.ipynb
 2. Terminal 현재 경로 확인
 3. .venv 활성화 확인
 4. git status 확인
-5. docs/PROGRESS.md 확인
+5. docs/PROGRESS.md 확인 (docs/DEVELOPMENT_RULES.md 규칙도 함께 확인)
 6. 현재 STEP 확인
 7. 현재 STEP의 완료 조건 확인
 8. Claude Code 또는 Codex에 현재 STEP만 전달
