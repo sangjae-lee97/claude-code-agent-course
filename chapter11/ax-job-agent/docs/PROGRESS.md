@@ -14,13 +14,14 @@ STEP 01 개발환경 확인 Notebook 완료
 STEP 02 수집 데이터 명세 완료 (컬럼 9개 확정)
 STEP 03 채용공고 페이지 접근 테스트 완료 (보안정책 페이지 반환, 우회하지 않기로 결정)
 STEP 04 소량 샘플 데이터 준비 완료 (실습용 샘플 5건 DataFrame 생성)
-STEP 05 DataFrame 기본 구조 확인 시작 전
+STEP 05 DataFrame 기본 구조 확인 완료
+STEP 06 전처리 / 중복 제거 시작 전
 ```
 
 다음 작업:
 
 ```text
-STEP 05에서 df_jobs의 shape, 컬럼, head, 결측값, 중복 URL 여부를 확인한다.
+STEP 06에서 df_jobs의 데이터 타입, 날짜 컬럼 변환, 문자열 정리, 중복 처리 기준을 확인한다.
 Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → 실행 결과 해석/분석/요약(Markdown) 3셀 패턴을 따른다.
 ```
 
@@ -35,8 +36,8 @@ Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → �
 | 02 | 수집 데이터 명세 | ✅ 완료 | 한 행 의미와 컬럼 확정 |
 | 03 | 채용공고 페이지 접근 테스트 | ✅ 완료 (이슈 발견) | HTTP 상태/Content-Type/응답 확인 |
 | 04 | 소량 데이터 수집 | ✅ 완료 (실제 크롤링 대신 샘플 5건 사용) | 1개 → 5~10개 공고 확인 |
-| 05 | DataFrame 생성 | ⏳ 다음 (STEP 04에서 `df_jobs` 이미 생성됨, 검증 필요) | 컬럼/shape/head 확인 |
-| 06 | 전처리 / 중복 제거 | ⬜ 대기 | 결측/중복/날짜 처리 검증 |
+| 05 | DataFrame 기본 구조 확인 | ✅ 완료 | 컬럼/shape/head/결측/중복 확인 |
+| 06 | 전처리 / 중복 제거 | ⏳ 다음 | 결측/중복/날짜 처리 검증 |
 | 07 | 신규 공고 판별 | ⬜ 대기 | 기존 vs 신규 URL 구분 |
 | 08 | 기본 분석 / 관련 공고 필터링 | ⬜ 대기 | 기본 통계와 필터 검증 |
 | 09 | Gemini API 연동 | ⬜ 대기 | 일부 공고 요약 성공 |
@@ -138,6 +139,18 @@ Python (ax-job-agent)
 - STEP 02에서 정의한 9개 컬럼을 그대로 사용해 실습용 채용공고 **5건**을 직접 작성
 - `pd.DataFrame(sample_jobs)`로 `df_jobs` 생성, 실행 결과: `데이터 크기: (5, 9)` — 정상 생성 확인
 - 해석 셀에 명시: "현재 데이터는 실제 크롤링 결과가 아니라 이후 전처리와 분석을 연습하기 위한 샘플 데이터"
+
+### Notebook / STEP 05
+
+- `df_jobs` 기본 구조 검증 완료
+- 데이터 크기: **5행 × 9열**
+- 컬럼 목록:
+  `company_name`, `job_title`, `career`, `location`, `posted_date`,
+  `closing_date`, `job_url`, `search_keyword`, `collected_at`
+- 상위 5개 행을 직접 확인했고, 한 행이 채용공고 1건 구조로 정상 구성됨
+- 모든 컬럼의 결측값: **0개**
+- `job_url` 기준 중복 공고: **0건**
+- 결론: 현재 샘플 DataFrame의 기본 구조에는 이상이 없으며 STEP 06 전처리로 진행 가능
 
 ---
 
@@ -256,8 +269,8 @@ Claude Code 또는 Codex에 아래 범위만 전달합니다.
 현재 프로젝트는 AX 채용정보 Agent Pipeline입니다.
 나는 Python 데이터 분석 초보자입니다.
 
-현재 단계는 STEP 05 DataFrame 기본 구조 확인입니다.
-STEP 01~04는 완료되었습니다 (docs/PROGRESS.md 참고).
+현재 단계는 STEP 06 전처리 / 중복 제거입니다.
+STEP 01~05는 완료되었습니다 (docs/PROGRESS.md 참고).
 
 이번 작업만 수행해 주세요.
 
@@ -265,14 +278,14 @@ Notebook 작성 규칙:
 - 모든 작업은 작업 계획(Markdown Cell) → 실제 코드(Code Cell) → 실행 결과 해석/분석/요약(Markdown Cell) 순서의 3셀 세트로 작성합니다.
 
 확인할 항목:
-1. df_jobs.shape
-2. df_jobs.columns
-3. df_jobs.head()
-4. df_jobs.isna().sum()
-5. job_url 기준 중복 개수
+1. df_jobs.dtypes 확인
+2. posted_date / closing_date / collected_at 날짜 타입 변환
+3. 문자열 컬럼의 불필요한 앞뒤 공백 여부 확인 및 정리
+4. job_url 기준 중복 제거 필요 여부 확인
+5. 전처리 전후 shape와 결측값 재확인
 
 하지 말 것:
-- STEP 06 전처리 진행
+- STEP 07 신규 공고 판별 진행
 - 실제 크롤링 재시도
 - Gemini API 사용
 - Slack / Gmail 구현
@@ -280,9 +293,10 @@ Notebook 작성 규칙:
 - 다음 STEP 구현
 
 완료 조건:
-- 사용자가 VS Code Notebook에서 직접 실행
-- DataFrame 크기와 컬럼이 예상과 일치하는지 확인
-- 결측값과 중복 URL 개수를 확인
+- 날짜 컬럼이 datetime 타입으로 정상 변환됨
+- 문자열 기본 정리가 완료됨
+- 중복 제거 결과가 확인됨
+- 전처리 후 shape / 결측값을 다시 검증함
 - 실행 결과 해석 Markdown Cell 작성
 ```
 
