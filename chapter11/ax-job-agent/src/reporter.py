@@ -81,7 +81,7 @@ def _validation_section(validation_summary):
 
 def create_report(jobs_df, analysis, gemini_summary=None, validation_summary=None,
                   data_source="data/processed/jobs_history.csv", extra_limitations=None,
-                  next_step_text="GitHub Actions에서 자동 실행 검증"):
+                  next_step_text="GitHub Actions 주간 자동 실행 운영 (매주 월요일 09:00 KST), 실행 결과는 Slack / Gmail에서 확인"):
     """보고서 Markdown 문자열을 만들어 반환한다. (파일 저장은 하지 않음)"""
     total = analysis["total_jobs"]
     keywords = ", ".join(analysis["keyword_counts"].keys())

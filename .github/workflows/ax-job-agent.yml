@@ -1,11 +1,16 @@
-name: AX Job Agent - Manual Run
+name: AX Job Agent
 
-# STEP 17: 수동 실행만 (주간 schedule은 STEP 18에서 추가)
+# 수동 실행 + 주 1회 자동 실행
+# cron은 UTC 기준: "0 0 * * 1" = 매주 월요일 00:00 UTC = 매주 월요일 09:00 KST
+# (GitHub Actions schedule은 정확한 시각을 보장하지 않으므로 "월요일 오전 9시 전후"로 이해한다)
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 1"
 
+# history CSV를 repository에 commit/push하기 위해 쓰기 권한만 추가
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   run-agent:
@@ -37,6 +42,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # history CSV와 보고서는 runner 안에서만 갱신되고, 실행이 끝나면 사라진다 (commit/push 하지 않음)
       - name: Run AX Job Agent
         run: python main.py
+
+      # main.py가 성공한 경우에만 실행된다 (앞 step이 실패하면 이 step은 건너뛴다)
+      # 다음 실행에서도 신규 공고를 판별할 수 있도록 history CSV 하나만 commit/push한다 (보고서는 commit하지 않음)
+      - name: Persist updated history
+        working-directory: .
+        run: |
+          HISTORY_FILE="chapter11/ax-job-agent/data/processed/jobs_history.csv"
+          if git diff --quiet -- "$HISTORY_FILE"; then
+            echo "history 변경 없음 — commit 생략"
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add "$HISTORY_FILE"
+            git commit -m "chore: update AX job history"
+            git push
+          fi

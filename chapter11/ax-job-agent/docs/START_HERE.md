@@ -28,7 +28,7 @@ Notebook: notebooks/ax_job_pipeline.ipynb
 
 ## 현재 진행 상태
 
-### 완료: STEP 01 ~ 16 (DONE)
+### 완료: STEP 01 ~ 17 (DONE)
 
 - STEP 00 환경 준비 (Fork/Clone, `.venv`, Python 3.14.6, 패키지, 커널 `Python (ax-job-agent)`)
 - STEP 01 개발환경 확인
@@ -48,40 +48,40 @@ Notebook: notebooks/ax_job_pipeline.ipynb
 - STEP 14 함수화 — Notebook 로직을 `src/` 함수로 분리 (crawler, preprocess, analyzer, gemini_client, reporter, notifier)
 - STEP 15 main.py 통합 — `main.py`에서 src 함수를 실행 순서로 연결, `main(dry_run=True)`로 흐름 검증
 - STEP 16 로컬 전체 실행 검증 — `python main.py` 실제 실행 성공, Slack·Gmail 실제 도착 확인
+- STEP 17 GitHub Actions 수동 실행 — GitHub runner에서 `python main.py` 성공, Slack·Gmail 실제 도착 확인
 
 Notebook의 `STEP 07-A` ~ `07-I` 셀은 위 STEP 04~09의 **세부 검증 기록**입니다.
 공식 STEP과의 매핑은 `docs/PROGRESS.md`의 "개발 과정 세부 검증 기록"을 참고하세요.
 Notebook의 STEP 04~07 샘플 데이터 셀은 과거 프로토타입 기록입니다.
 
-### 현재: STEP 17 GitHub Actions 수동 실행 (IN_PROGRESS)
+### 현재: STEP 18 GitHub Actions 주간 실행 (IN_PROGRESS)
 
-- workflow(`.github/workflows/ax-job-agent.yml`, 저장소 루트)와 `requirements.txt` 준비 완료, 정적 검증 통과.
-- GitHub Secrets 등록 및 수동 실행 대기.
+- workflow `AX Job Agent`: 수동 실행(`workflow_dispatch`) + 주간 자동 실행(`cron: "0 0 * * 1"` = 매주 월요일 09:00 KST)
+- `python main.py` 성공 뒤 history CSV 하나만 자동 commit/push (`chore: update AX job history`)
+- 파일 준비·정적 검증 완료, push 및 GitHub 검증 대기
 
 ### 아직 하지 않음
 
-- STEP 17 GitHub Actions 수동 실행 — Secrets 등록 → push → Run workflow 1회 → Slack·Gmail 도착 확인 후 DONE
-- STEP 18 GitHub Actions 주간 실행
+- STEP 18 GitHub Actions 주간 실행 — push → updated workflow 수동 검증 1회 → history 자동 commit 확인 후 DONE
 
 ## 지금 바로 해야 할 다음 작업
 
-**STEP 17 — GitHub Actions 수동 실행: GitHub Secrets 등록 → push → Run workflow 1회**
+**STEP 18 — push → updated workflow 수동 검증 → history 자동 commit 확인**
 
 완료 기준 (STEP 진행표 기준):
 
 ```text
-Run workflow 성공
-(workflow 이름: AX Job Agent - Manual Run / 트리거: workflow_dispatch만)
+schedule 등록 확인 (workflow 이름: AX Job Agent, 매주 월요일 09:00 KST)
+수동 실행 1회 성공 + history CSV 한 파일만 자동 commit
 ```
 
 ### 이번 STEP에서 하면 안 되는 것
 
-- STEP 18 작업 (schedule 주간 실행)
+- `git add .`, 보고서 자동 commit, 새 Secret·PAT 추가
 - Secret 값을 코드·문서·채팅에 쓰기, `.env` 업로드
-- workflow에서 git commit/push, 불필요한 write 권한
-- JobKorea 우회 로직, Gemini 자동 재시도 추가
+- main.py 로직, 신규 공고 알림 정책, Gemini 모델·호출 수 변경
+- 하루/시간당 여러 번 실행하는 schedule
 - Run workflow 반복 실행 (실패하면 로그 먼저 확인)
-- 여러 STEP을 한 번에 구현
 
 ### 실행 시 주의
 

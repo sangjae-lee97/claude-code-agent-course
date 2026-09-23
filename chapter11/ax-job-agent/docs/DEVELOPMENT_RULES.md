@@ -87,7 +87,16 @@
 - main.py는 실행 순서만 담당
 - Notebook에서 검증된 동작을 함수화 단계에서 임의로 변경하지 않음
 
-## 8. 추가 예정 규칙
+## 8. GitHub Actions 운영 규칙
+
+- Secret은 GitHub Repository Secrets 사용 (값을 코드·workflow·문서에 쓰지 않음)
+- schedule cron은 UTC 기준임을 문서에 명시 (예: `0 0 * * 1` = 매주 월요일 09:00 KST)
+- 자동 commit 대상 파일은 명시적으로 제한 (현재: `jobs_history.csv` 하나)
+- `git add .` 금지
+- history 외 파일을 자동 push하지 않음
+- 실패 시 자동 반복 재실행하지 않음 (로그를 먼저 확인)
+
+## 9. 추가 예정 규칙
 
 필요해지면 아래 항목을 이 문서에 추가합니다.
 

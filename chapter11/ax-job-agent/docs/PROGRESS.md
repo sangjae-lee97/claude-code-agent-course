@@ -25,16 +25,39 @@ STEP 13 Gmail 발송                          → DONE  (자기 자신에게 1�
 STEP 14 함수화                              → DONE  (src/ 7개 파일, 로컬 함수 검증, 외부 요청 0회)
 STEP 15 main.py 통합                        → DONE  (main.py 생성, main(dry_run=True) 흐름 검증, 외부 요청 0회)
 STEP 16 로컬 전체 실행 검증                  → DONE  (python main.py 1회 성공, Slack·Gmail 실제 도착 사용자 확인)
-STEP 17 GitHub Actions 수동 실행             → IN_PROGRESS  (workflow/requirements 준비 완료, GitHub Secrets 등록 및 수동 실행 대기)
-STEP 18 GitHub Actions 주간 실행             → NOT_STARTED
+STEP 17 GitHub Actions 수동 실행             → DONE  (Run workflow 성공, Slack·Gmail 실제 도착 사용자 확인)
+STEP 18 GitHub Actions 주간 실행             → IN_PROGRESS  (schedule 및 history persistence 준비 완료, push 및 GitHub 검증 대기)
 ```
 
-**현재 공식 진행 위치: STEP 17 GitHub Actions 수동 실행 (IN_PROGRESS)**
+**현재 공식 진행 위치: STEP 18 GitHub Actions 주간 실행 (IN_PROGRESS)**
 
-STEP 17 진행 상황:
+STEP 18 진행 상황:
 
 ```text
-완료 (workflow/requirements 준비 완료):
+완료 (schedule 및 history persistence 준비 완료):
+- .github/workflows/ax-job-agent.yml: 이름 "AX Job Agent", workflow_dispatch 유지 + schedule cron "0 0 * * 1"
+  (매주 월요일 00:00 UTC = 09:00 KST), permissions contents: write
+- main.py 성공 뒤 "Persist updated history" step: history CSV 하나만 변경 시 commit/push
+  (git add "$HISTORY_FILE", 메시지 "chore: update AX job history", GITHUB_TOKEN 사용, 새 Secret·PAT 없음, 보고서 commit 없음)
+- src/reporter.py 8장 기본 문구 → "GitHub Actions 주간 자동 실행 운영 (매주 월요일 09:00 KST), 실행 결과는 Slack / Gmail에서 확인"
+- Notebook STEP 18 정적 검증 통과, 임시 Git 저장소로 history 저장 step 사전 시험 통과 (외부 요청 0회)
+
+남은 작업 (사용자):
+- 변경 사항 push → GitHub Actions에서 "AX Job Agent" workflow에 schedule 표시 확인
+- 수정된 workflow를 수동으로 1회 실행 → 전체 성공, Persist history step 성공, Slack·Gmail 도착,
+  main에 "chore: update AX job history" commit 생성(history CSV 한 파일만), 비밀값 노출 없음, 반복 실행 없음 확인
+- 확인 후 STEP 18 DONE → 공식 STEP 01 ~ 18 전체 완료
+```
+
+STEP 17 결과 요약 (DONE):
+
+```text
+- 사용자 GitHub Actions 수동 실행 결과: "AX Job Agent - Manual Run" 전체 성공, python main.py 끝까지 성공
+  JobKorea 수집 5건 / 전처리 5건 / 신규 0건 / 관련 5건 / Gemini 2회 호출·2건 성공 / 보고서 3456자
+  / Slack HTTP 200 ok, 실제 채널 도착 확인 / Gmail SMTP 성공, 실제 받은편지함 도착 확인 / 비밀값 노출 없음
+- GitHub runner(IP)에서도 JobKorea 수집 성공 (User-Agent 1회 재요청 방식 그대로)
+
+준비 내용 (workflow/requirements):
 - 저장소 루트 .github/workflows/ax-job-agent.yml ("AX Job Agent - Manual Run")
   workflow_dispatch만, contents: read, ubuntu-latest, Python 3.14, working-directory chapter11/ax-job-agent,
   Secrets 4개를 환경변수로 주입, pip install -r requirements.txt → python main.py, commit/push 없음
@@ -42,9 +65,6 @@ STEP 17 진행 상황:
 - src/reporter.py 8장 기본 문구: "Slack / Gmail 발송" → "GitHub Actions에서 자동 실행 검증"
 - Notebook STEP 17 정적 검증 통과 (외부 요청 0회)
 
-남은 작업 (사용자):
-- GitHub Repository Secrets 4개 등록 → 변경 사항 push → Actions에서 Run workflow 1회
-- workflow 성공, Slack·Gmail 실제 도착, 로그에 비밀값 노출 없음 확인 → 확인 후 STEP 17 DONE
 ```
 
 STEP 16 결과 요약 (DONE):
@@ -139,9 +159,9 @@ STEP 09 결과 요약:
 다음 작업:
 
 ```text
-STEP 17 GitHub Actions 수동 실행 (IN_PROGRESS)
-GitHub Secrets 4개 등록 → push → Actions 탭에서 "AX Job Agent - Manual Run" Run workflow 1회
-실패해도 바로 다시 실행하지 않고 로그를 먼저 확인한다. STEP 18(주간 schedule)은 STEP 17 DONE 이후에만 시작한다.
+STEP 18 GitHub Actions 주간 실행 (IN_PROGRESS)
+push → updated workflow("AX Job Agent") 수동 검증 1회 → history 자동 commit 확인
+실패해도 바로 다시 실행하지 않고 로그를 먼저 확인한다.
 (참고) STEP 09에서 GS리테일 공고는 503 오류로 응답을 받지 못했고, STEP 10은 에스코어 1건만 검증했다.
 Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → 실행 결과 해석/분석/요약(Markdown) 3셀 패턴을 따른다.
 앞으로는 07-J, 07-K처럼 세부 번호를 늘리지 않고 원래 STEP 번호(STEP 09, STEP 10 …)를 사용한다.
@@ -170,8 +190,8 @@ Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → �
 | 14 | 함수화 | ✅ DONE | Notebook 코드를 src로 분리 | STEP 14 (`src/` 7개 파일, 로컬 검증) |
 | 15 | main.py 통합 | ✅ DONE | 전체 순서 연결 | STEP 15 (`main.py`, dry_run 검증) |
 | 16 | 로컬 전체 실행 검증 | ✅ DONE | `python main.py` 성공 | STEP 16 (실행 성공, Slack·Gmail 도착 사용자 확인) |
-| 17 | GitHub Actions 수동 실행 | ⏳ IN_PROGRESS | Run workflow 성공 | STEP 17 (workflow 준비·정적 검증, Secrets 등록·수동 실행 대기) |
-| 18 | GitHub Actions 주간 실행 | ⬜ NOT_STARTED | schedule 등록 | — |
+| 17 | GitHub Actions 수동 실행 | ✅ DONE | Run workflow 성공 | STEP 17 (수동 실행 성공, Slack·Gmail 도착 사용자 확인) |
+| 18 | GitHub Actions 주간 실행 | ⏳ IN_PROGRESS | schedule 등록 | STEP 18 (schedule·history persistence 준비, push·GitHub 검증 대기) |
 
 공식 STEP 04~07의 완료 판단은 **실데이터 세부 검증(07-A ~ 07-D) 결과**를 기준으로 한다.
 Notebook의 STEP 04~07 셀(샘플 데이터)은 과거 프로토타입 기록이다. (아래 "개발 과정 세부 검증 기록" 참고)
@@ -540,7 +560,7 @@ Notebook의 `STEP 07-A` ~ `STEP 07-I` 셀은 개발 과정의 상세 실험 기�
 - 참고: 보고서 8장 "다음 단계"가 `create_report()` 기본값 "Slack / Gmail 발송"으로 남아 있어 실제 상태와 맞지 않음 (후속 수정 후보)
 - 사용자 최종 확인 완료: Slack 실제 채널 도착, Gmail 실제 받은편지함 도착 → **STEP 16 DONE**
 
-### STEP 17 GitHub Actions 수동 실행 (진행 중)
+### STEP 17 GitHub Actions 수동 실행 (완료)
 
 준비한 파일 (Claude Code는 commit/push 하지 않음 — 사용자가 직접 올림):
 - `.github/workflows/ax-job-agent.yml` (저장소 루트 — GitHub 규칙상 workflow는 저장소 루트 `.github/workflows/`에 있어야 함)
@@ -571,7 +591,47 @@ STEP 18에서 판단할 사항 (history / report 유지):
 - runner는 GitHub 서버 IP에서 실행되므로 JobKorea가 보안정책 페이지를 줄 수 있음 → `collect_jobs()` RuntimeError로 workflow 실패 가능. 우회하지 않음
 - Gemini 503은 개별 공고 실패로 기록되고 파이프라인 계속 진행 (자동 재시도 없음)
 
-상태: workflow/requirements 준비 완료, GitHub Secrets 등록 및 수동 실행 대기
+사용자 실행 결과 (Secrets 4개 등록 → push(`d80dbfe`) → Run workflow 1회):
+- "AX Job Agent - Manual Run" 전체 성공, `python main.py` 끝까지 성공
+- JobKorea 수집 5건 (GitHub runner IP에서도 성공), 전처리 5건, 신규 0건, 관련 5건
+- Gemini 2회 호출, 2건 성공 (로컬 STEP 16과 달리 503 없음)
+- 보고서 3456자 생성 (runner 안에서만, commit 없음)
+- Slack HTTP 200 / ok, 실제 채널 도착 사용자 확인
+- Gmail SMTP 발송 성공, 실제 받은편지함 도착 사용자 확인
+- 로그에 비밀값 노출 없음 → **STEP 17 DONE**
+
+### STEP 18 GitHub Actions 주간 실행 (진행 중)
+
+`.github/workflows/ax-job-agent.yml` 변경 (main.py, requirements.txt, 다른 src 수정 없음):
+- 이름: `AX Job Agent - Manual Run` → `AX Job Agent`
+- 트리거: `workflow_dispatch` 유지 + `schedule: - cron: "0 0 * * 1"`
+  - cron은 UTC 기준: 매주 월요일 00:00 UTC = **매주 월요일 09:00 KST**
+  - GitHub Actions schedule은 정확한 시각을 보장하지 않음 → "월요일 오전 9시 전후 자동 실행"
+- 권한: `contents: read` → `contents: write` (history push용, 그 외 권한 없음)
+- Secret: 기존 4개 그대로 (새 Secret·PAT 없음, 기본 `GITHUB_TOKEN`으로 push)
+- 마지막 step `Persist updated history` 추가 (`python main.py` 뒤 — 앞 step이 실패하면 실행되지 않음):
+  - `working-directory: .` (저장소 루트), `HISTORY_FILE="chapter11/ax-job-agent/data/processed/jobs_history.csv"`
+  - `git diff --quiet -- "$HISTORY_FILE"`로 변경이 없으면 "history 변경 없음 — commit 생략"
+  - 변경이 있으면 `github-actions[bot]` 사용자로 `git add "$HISTORY_FILE"` (그 파일 하나만) → `git commit -m "chore: update AX job history"` → `git push`
+  - `git add .` 없음, 보고서(`reports/ax_job_report.md`)는 commit하지 않음 (Slack/Gmail로 전달되므로)
+- `src/reporter.py`: `next_step_text` 기본값 → "GitHub Actions 주간 자동 실행 운영 (매주 월요일 09:00 KST), 실행 결과는 Slack / Gmail에서 확인"
+
+검증 (외부 요청 0회):
+- Notebook `# STEP 18. GitHub Actions 주간 실행` 3셀 — 정적 검증 모두 통과
+  (workflow_dispatch·schedule 존재, cron `0 0 * * 1` 1개, 그 외 트리거 없음, `contents: write`만, Secret 4개만,
+  `python main.py`, history step이 main 실행 뒤, `git add` 대상 history 하나, `git add .`·보고서 add 없음, commit 메시지, `git push`, PAT 없음)
+- 임시 Git 저장소(로컬 bare 원격)로 history 저장 step 스크립트 사전 시험:
+  변경 없음 → commit 생략 / history + 보고서 동시 변경 → 원격 commit에 history CSV 한 파일만 포함
+
+설계 특이사항:
+- 현재 history는 같은 공고 재수집 시 `collected_at`을 최신 시각으로 갱신하므로(keep="last"),
+  **신규 공고가 0건이어도 history commit이 발생할 수 있다.** 처음 발견 시각 보존 방식은 향후 개선 후보다.
+- 반복 실행: 이 workflow에는 `push` 트리거가 없고, GitHub는 `GITHUB_TOKEN`으로 만든 push로 새 workflow 실행을 만들지 않는다
+  → 자동 commit이 이 workflow나 기존 push 트리거 workflow(Resource Smoke Test, Resource Policy Guard, Fast Track Smoke Test)를 다시 실행시키지 않을 것으로 예상 (실제 실행에서 확인)
+- 자동 push 직전에 다른 commit이 main에 먼저 올라가면 push가 거절될 수 있음 (자동 재시도 없음, 발생 시 로그로 판단)
+- 향후 개선 후보 (이번 STEP에서 구현하지 않음): 신규 공고 0건이면 알림 생략, 신규 공고만 Gemini 요약, 신규 공고만 Slack/Gmail
+
+상태: schedule 및 history persistence 준비 완료, push 및 GitHub 검증 대기
 
 ### 실데이터 흐름 남은 특이사항
 
@@ -702,28 +762,28 @@ Claude Code 또는 Codex에 아래 범위만 전달합니다.
 프로젝트 경로: chapter11/ax-job-agent (브랜치 main)
 나는 Python 데이터 분석 초보자입니다.
 
-현재 단계는 STEP 17 GitHub Actions 수동 실행입니다.
-(workflow/requirements 준비 완료, GitHub Secrets 등록 및 수동 실행 대기)
-STEP 01~16은 완료되었습니다 (docs/PROGRESS.md 참고).
-- STEP 16: python main.py 로컬 실제 실행 성공, Slack·Gmail 도착 확인
-- STEP 17: .github/workflows/ax-job-agent.yml (workflow_dispatch), chapter11/ax-job-agent/requirements.txt 준비
+현재 단계는 STEP 18 GitHub Actions 주간 실행입니다. (공식 마지막 STEP)
+(schedule 및 history persistence 준비 완료, push 및 GitHub 검증 대기)
+STEP 01~17은 완료되었습니다 (docs/PROGRESS.md 참고).
+- STEP 17: GitHub Actions 수동 실행 성공, Slack·Gmail 도착 확인
+- STEP 18: workflow "AX Job Agent" — workflow_dispatch + schedule(cron "0 0 * * 1" = 월 09:00 KST),
+  contents: write, main.py 성공 후 history CSV 하나만 자동 commit/push
 
 이번 작업만 수행해 주세요.
 
 목표:
-- 사용자가 GitHub Actions에서 Run workflow를 1회 실행한 결과(로그)를 확인하고 기록합니다.
+- 사용자가 수정된 workflow를 수동으로 1회 실행한 결과(로그, 자동 commit)를 확인하고 기록합니다.
 
 하지 말 것:
-- schedule 추가 (STEP 18)
-- workflow에서 git commit/push, 불필요한 write 권한
+- git add . / 보고서 자동 commit / 새 Secret·PAT
 - Secret 값 출력·기록
-- JobKorea 우회 로직, Gemini 자동 재시도 추가
+- main.py 로직, 신규 알림 정책, Gemini 호출 수 변경
 - GitHub Actions 반복 실행
 
 완료 조건:
-- workflow 전체 성공, main.py 실행 성공
-- Slack·Gmail 실제 도착 사용자 확인
-- 로그에 비밀값 노출 없음
+- workflow 전체 성공, Persist history step 성공
+- 자동 commit "chore: update AX job history"가 history CSV 한 파일만 포함
+- Slack·Gmail 실제 도착 사용자 확인, 로그에 비밀값 노출 없음, 반복 실행 없음
 ```
 
 ---
