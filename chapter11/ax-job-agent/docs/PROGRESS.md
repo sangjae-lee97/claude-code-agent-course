@@ -14,12 +14,14 @@ STEP 01 개발환경 확인 Notebook 완료
 STEP 02 수집 데이터 명세 완료 (컬럼 9개 확정)
 STEP 03 채용공고 페이지 접근 테스트 완료 (보안정책 페이지 반환, 우회하지 않기로 결정)
 STEP 04 소량 샘플 데이터 준비 완료 (실습용 샘플 5건 DataFrame 생성)
+STEP 05 DataFrame 기본 구조 확인 시작 전
 ```
 
 다음 작업:
 
 ```text
-샘플 DataFrame(df_jobs)의 컬럼 구조 / 결측값 / 중복 여부를 확인한다 (STEP 05)
+STEP 05에서 df_jobs의 shape, 컬럼, head, 결측값, 중복 URL 여부를 확인한다.
+Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → 실행 결과 해석/분석/요약(Markdown) 3셀 패턴을 따른다.
 ```
 
 ---
@@ -254,29 +256,34 @@ Claude Code 또는 Codex에 아래 범위만 전달합니다.
 현재 프로젝트는 AX 채용정보 Agent Pipeline입니다.
 나는 Python 데이터 분석 초보자입니다.
 
-현재 단계는 STEP 03 채용공고 페이지 접근 테스트입니다.
-STEP 01, STEP 02는 이미 완료되었습니다 (docs/PROGRESS.md 참고).
+현재 단계는 STEP 05 DataFrame 기본 구조 확인입니다.
+STEP 01~04는 완료되었습니다 (docs/PROGRESS.md 참고).
 
 이번 작업만 수행해 주세요.
 
-1. notebooks/ax_job_pipeline.ipynb에 STEP 03 Markdown Cell을 추가합니다.
-2. requests로 잡코리아 채용공고 검색 결과 페이지에 GET 요청을 보내는
-   Code Cell을 추가합니다.
-3. 응답의 HTTP 상태 코드, Content-Type, 응답 길이를 출력합니다.
-4. 초보자가 이해할 수 있도록 간단한 주석을 작성합니다.
+Notebook 작성 규칙:
+- 모든 작업은 작업 계획(Markdown Cell) → 실제 코드(Code Cell) → 실행 결과 해석/분석/요약(Markdown Cell) 순서의 3셀 세트로 작성합니다.
+
+확인할 항목:
+1. df_jobs.shape
+2. df_jobs.columns
+3. df_jobs.head()
+4. df_jobs.isna().sum()
+5. job_url 기준 중복 개수
 
 하지 말 것:
-- 실제 HTML 파싱 / 데이터 추출
-- DataFrame 생성
+- STEP 06 전처리 진행
+- 실제 크롤링 재시도
 - Gemini API 사용
 - Slack / Gmail 구현
 - main.py 작성
 - 다음 STEP 구현
 
 완료 조건:
-- 요청이 정상적으로 응답을 받음 (상태 코드 확인)
-- 사용자가 VS Code에서 직접 셀을 실행할 수 있음
-- 응답 내용이 예상한 채용공고 검색 결과인지 사람이 직접 확인
+- 사용자가 VS Code Notebook에서 직접 실행
+- DataFrame 크기와 컬럼이 예상과 일치하는지 확인
+- 결측값과 중복 URL 개수를 확인
+- 실행 결과 해석 Markdown Cell 작성
 ```
 
 ---
