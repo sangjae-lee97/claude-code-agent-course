@@ -26,7 +26,7 @@ STEP 14 함수화                              → DONE  (src/ 7개 파일, 로�
 STEP 15 main.py 통합                        → DONE  (main.py 생성, main(dry_run=True) 흐름 검증, 외부 요청 0회)
 STEP 16 로컬 전체 실행 검증                  → DONE  (python main.py 1회 성공, Slack·Gmail 실제 도착 사용자 확인)
 STEP 17 GitHub Actions 수동 실행             → DONE  (Run workflow 성공, Slack·Gmail 실제 도착 사용자 확인)
-STEP 18 GitHub Actions 주간 실행             → IN_PROGRESS  (schedule·history persistence 준비, 운영 출력 정합성 보완 완료 — push 및 GitHub 최종 검증 대기)
+STEP 18 GitHub Actions 주간 실행             → IN_PROGRESS  (최종 검증 1회 JobKorea ConnectTimeout으로 실패, 연결 오류 메시지 보완 — 재검증 대기)
 ```
 
 **현재 공식 진행 위치: STEP 18 GitHub Actions 주간 실행 (IN_PROGRESS)**
@@ -46,6 +46,8 @@ STEP 18 진행 상황:
 - 사용자가 push(6af850e) 후 수동 실행 → 봇 commit adbe833 "chore: update AX job history" 생성,
   변경 파일은 chapter11/ax-job-agent/data/processed/jobs_history.csv 하나뿐 (git show로 확인)
 - STEP 18 최종화 전에 Slack/Gmail 출력 정합성 문제 발견 → 보완 완료 (아래 상세 기록 참고, 새 STEP 번호 없음)
+- 출력 정합성 보완 push 후 GitHub Actions 최종 검증 실행 → **JobKorea ConnectTimeout으로 실패** (수집 단계 이전 종료,
+  Slack·Gmail·history commit 미실행) → 연결 오류 메시지 보완 완료 (아래 상세 기록 참고)
 
 남은 작업 (사용자):
 - 로컬이 origin/main보다 1 commit 뒤처짐(봇 commit) → git pull 후 보완 내용 push
@@ -673,6 +675,34 @@ STEP 18에서 판단할 사항 (history / report 유지):
 
 참고:
 - `create_report()`, `build_slack_message()`, `send_email()`의 인자가 바뀌었다. Notebook STEP 14 검증 셀은 이전 시그니처로 작성된 과거 기록이라 그대로 다시 실행하면 오류가 난다. (STEP 15 셀의 `main(dry_run=True)`는 그대로 동작)
+
+#### STEP 18 GitHub 최종 검증 실패 사례 — JobKorea ConnectTimeout
+
+실제 발생 (GitHub Actions, "AX Job Agent" 수동 실행, 출력 정합성 보완 push 후):
+- 오류: `requests.exceptions.ConnectTimeout` — `www.jobkorea.co.kr:443`, `connect timeout=10`
+- 수집 단계(`collect_jobs`)에서 예외로 `main.py` 종료 → 긴 traceback만 로그에 남음
+- 이후 단계 미실행: Gemini·보고서·Slack·Gmail 모두 실행 안 됨, `Persist updated history` step도 실행 안 됨 (history commit 없음)
+- 판단: STEP 17에서 같은 GitHub Actions 환경에서 수집에 성공했으므로 **파싱 오류가 아니라 외부 사이트 연결 불안정 사례**로 기록
+- **운영 리스크**: 주간 자동 실행은 JobKorea 연결 안정성에 의존한다. GitHub runner(IP)에서 연결이 실패하면 그 주에는 알림이 오지 않고 workflow가 실패로 표시된다.
+- STEP 18은 **IN_PROGRESS 유지**
+
+보완 (수정 파일: `src/crawler.py`, `main.py` — Secret·Gemini·Slack·Gmail 로직, workflow, history persistence 수정 없음):
+- `crawler.py`: `JobKoreaConnectionError` 추가, `requests.get`을 `_get()`으로 감싸 연결 오류를 사람이 읽는 메시지로 변환
+  - `requests.exceptions.Timeout`(ConnectTimeout 포함) → "JobKorea 연결 실패: 요청 시간이 초과되었습니다. (timeout=10초, ConnectTimeout)"
+  - `requests.exceptions.ConnectionError` → "JobKorea 연결 실패: 서버에 연결할 수 없습니다. (네트워크 또는 사이트 접속 문제, ConnectionError)"
+  - timeout 10초, 요청 횟수(기본 1 + 보안정책일 때만 User-Agent 1), User-Agent 재요청 정책 **변경 없음**
+  - 연결 오류가 나면 다음 요청으로 이어가지 않음 (재시도·프록시·IP 우회·CAPTCHA 우회 없음)
+- `main.py`: `cli()` 추가 — `python main.py` 실행 시 `JobKoreaConnectionError`는 짧은 안내 2줄을 stderr에 출력하고 **종료 코드 1**
+  - 수집 실패 시 기존 history CSV를 최신 데이터처럼 대신 쓰지 않음 (fallback 없음) → GitHub Actions가 실패로 표시하고 history step은 건너뜀
+  - 그 밖의 오류는 이전처럼 그대로 예외로 종료 (non-zero)
+
+검증 (실제 외부 요청 0회 — 네트워크 차단, 가짜 `requests.get`, 이후 단계 함수 호출 감시):
+- CASE 1 첫 요청 ConnectTimeout / CASE 2 첫 요청 ConnectionError / CASE 3 보안정책 후 User-Agent 재요청이 ConnectTimeout:
+  모두 `python main.py`와 같은 방식(`__main__`)으로 실행 → 종료 코드 1, 사람이 읽는 메시지, traceback 없음,
+  요청 횟수 그대로(1 / 1 / 2회, timeout=10), 수집 이후 단계(Gemini·Slack·Gmail·보고서 저장·history 저장) 호출 0회
+- CASE 4 정상 응답(보안정책 → User-Agent 성공): 요청 2회, 5건·9컬럼, 결과가 history CSV와 같음(수집 시각 제외)
+- CASE 5 정상 응답(첫 요청 성공): 요청 1회, 5건
+- history CSV·보고서 체크섬 변경 없음
 
 ### 실데이터 흐름 남은 특이사항
 

@@ -38,18 +38,37 @@ def _parse_search_page(response):
     return soup, is_search_result
 
 
+class JobKoreaConnectionError(RuntimeError):
+    """JobKorea 서버에 연결하지 못했을 때 (시간 초과·연결 오류) 사람이 읽을 수 있는 메시지로 알리는 오류."""
+
+
+def _get(url, timeout, headers=None):
+    """requests.get 1회. 연결 오류는 긴 traceback 대신 JobKoreaConnectionError로 바꾼다. (재시도하지 않음)"""
+    try:
+        return requests.get(url, headers=headers, timeout=timeout)
+    except requests.exceptions.Timeout as e:
+        raise JobKoreaConnectionError(
+            f"JobKorea 연결 실패: 요청 시간이 초과되었습니다. (timeout={timeout}초, {type(e).__name__})"
+        ) from None
+    except requests.exceptions.ConnectionError as e:
+        raise JobKoreaConnectionError(
+            f"JobKorea 연결 실패: 서버에 연결할 수 없습니다. (네트워크 또는 사이트 접속 문제, {type(e).__name__})"
+        ) from None
+
+
 def fetch_search_page(url, timeout=10):
     """검색 페이지를 요청한다.
 
     기본 요청이 보안정책 페이지면 일반 브라우저 User-Agent로 1회만 다시 요청한다.
     반복 재시도나 그 외 우회 기법은 사용하지 않는다.
+    연결 시간 초과·연결 오류는 JobKoreaConnectionError로 알린다. (다른 요청으로 이어서 시도하지 않음)
     """
-    response = requests.get(url, timeout=timeout)
+    response = _get(url, timeout)
     response.raise_for_status()
     soup, is_search_result = _parse_search_page(response)
 
     if not is_search_result:
-        response = requests.get(url, headers=BROWSER_HEADERS, timeout=timeout)
+        response = _get(url, timeout, headers=BROWSER_HEADERS)
         response.raise_for_status()
         soup, is_search_result = _parse_search_page(response)
 

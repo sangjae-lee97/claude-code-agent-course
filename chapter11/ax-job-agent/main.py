@@ -11,12 +11,13 @@ dry_run=True (예: Notebook에서 main(dry_run=True)):
 """
 
 import os
+import sys
 from pathlib import Path
 
 import pandas as pd
 from dotenv import load_dotenv
 
-from src.crawler import collect_jobs
+from src.crawler import collect_jobs, JobKoreaConnectionError
 from src.preprocess import clean_jobs, find_new_jobs, update_history
 from src.analyzer import analyze_jobs, filter_relevant_jobs
 from src.gemini_client import summarize_with_gemini
@@ -167,5 +168,20 @@ def main(dry_run=False):
     return result
 
 
+def cli():
+    """명령줄 실행용. JobKorea 연결 실패는 짧은 안내를 출력하고 종료 코드 1을 돌려준다.
+
+    수집에 실패하면 기존 history를 대신 쓰지 않고 그대로 중단한다. (GitHub Actions가 실패로 표시하도록)
+    """
+    try:
+        main()
+    except JobKoreaConnectionError as e:
+        print(f"[중단] {e}", file=sys.stderr)
+        print("[중단] 수집 단계에서 실패하여 이후 단계(Gemini·보고서·Slack·Gmail·history 저장)를 실행하지 않았습니다.",
+              file=sys.stderr)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(cli())
