@@ -1,0 +1,42 @@
+name: AX Job Agent - Manual Run
+
+# STEP 17: 수동 실행만 (주간 schedule은 STEP 18에서 추가)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  run-agent:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: chapter11/ax-job-agent
+
+    # 인증정보는 GitHub Repository Secrets에서 주입한다 (.env는 사용하지 않음)
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      PYTHONIOENCODING: utf-8
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # history CSV와 보고서는 runner 안에서만 갱신되고, 실행이 끝나면 사라진다 (commit/push 하지 않음)
+      - name: Run AX Job Agent
+        run: python main.py

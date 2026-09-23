@@ -28,7 +28,7 @@ Notebook: notebooks/ax_job_pipeline.ipynb
 
 ## 현재 진행 상태
 
-### 완료: STEP 01 ~ 11 (DONE)
+### 완료: STEP 01 ~ 16 (DONE)
 
 - STEP 00 환경 준비 (Fork/Clone, `.venv`, Python 3.14.6, 패키지, 커널 `Python (ax-job-agent)`)
 - STEP 01 개발환경 확인
@@ -43,39 +43,44 @@ Notebook: notebooks/ax_job_pipeline.ipynb
   (에스코어 응답 수신, GS리테일은 503 서버 과부하로 실패)
 - STEP 10 Gemini 결과 검증 — 에스코어 응답 1건을 원본 CSV와 비교 (15개 항목, 불일치 0)
 - STEP 11 Markdown 보고서 생성 — `reports/ax_job_report.md`
+- STEP 12 Slack 발송 — 공고 5건 상세 정보를 Slack으로 전송, 사용자 확인 완료
+- STEP 13 Gmail 발송 — 보고서를 자기 자신에게 1회 발송, 받은편지함 도착 확인
+- STEP 14 함수화 — Notebook 로직을 `src/` 함수로 분리 (crawler, preprocess, analyzer, gemini_client, reporter, notifier)
+- STEP 15 main.py 통합 — `main.py`에서 src 함수를 실행 순서로 연결, `main(dry_run=True)`로 흐름 검증
+- STEP 16 로컬 전체 실행 검증 — `python main.py` 실제 실행 성공, Slack·Gmail 실제 도착 확인
 
 Notebook의 `STEP 07-A` ~ `07-I` 셀은 위 STEP 04~09의 **세부 검증 기록**입니다.
 공식 STEP과의 매핑은 `docs/PROGRESS.md`의 "개발 과정 세부 검증 기록"을 참고하세요.
 Notebook의 STEP 04~07 샘플 데이터 셀은 과거 프로토타입 기록입니다.
 
-### 현재: STEP 12 Slack 발송 (NOT_STARTED)
+### 현재: STEP 17 GitHub Actions 수동 실행 (IN_PROGRESS)
+
+- workflow(`.github/workflows/ax-job-agent.yml`, 저장소 루트)와 `requirements.txt` 준비 완료, 정적 검증 통과.
+- GitHub Secrets 등록 및 수동 실행 대기.
 
 ### 아직 하지 않음
 
-- STEP 12 Slack 발송 — **다음 단계, 아직 시작하지 않음**
-- STEP 13 Gmail 발송
-- STEP 14~16 함수화 / `main.py` 통합 / 로컬 전체 실행
-- STEP 17~18 GitHub Actions
+- STEP 17 GitHub Actions 수동 실행 — Secrets 등록 → push → Run workflow 1회 → Slack·Gmail 도착 확인 후 DONE
+- STEP 18 GitHub Actions 주간 실행
 
 ## 지금 바로 해야 할 다음 작업
 
-**STEP 12 — Slack 발송**
+**STEP 17 — GitHub Actions 수동 실행: GitHub Secrets 등록 → push → Run workflow 1회**
 
 완료 기준 (STEP 진행표 기준):
 
 ```text
-실제 Slack 채널에 도착한 것을 확인한다.
-(발송 대상 보고서: reports/ax_job_report.md)
+Run workflow 성공
+(workflow 이름: AX Job Agent - Manual Run / 트리거: workflow_dispatch만)
 ```
 
 ### 이번 STEP에서 하면 안 되는 것
 
-- STEP 13 이후 작업 (Gmail 발송 등)
-- API Key 출력 (값, 일부, 길이 모두)
-- 불필요한 반복 API 호출
-- Slack / Gmail 연동
-- `main.py` 작성
-- GitHub Actions 작성
+- STEP 18 작업 (schedule 주간 실행)
+- Secret 값을 코드·문서·채팅에 쓰기, `.env` 업로드
+- workflow에서 git commit/push, 불필요한 write 권한
+- JobKorea 우회 로직, Gemini 자동 재시도 추가
+- Run workflow 반복 실행 (실패하면 로그 먼저 확인)
 - 여러 STEP을 한 번에 구현
 
 ### 실행 시 주의

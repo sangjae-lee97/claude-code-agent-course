@@ -1,0 +1,8 @@
+# main.py / src 실행에 필요한 패키지 (Notebook 전용 패키지인 jupyter, ipykernel은 제외)
+# 로컬 검증 버전 (Python 3.14.6): pandas 3.0.6, requests 2.34.2, beautifulsoup4 4.15.0,
+#                                python-dotenv 1.2.3, google-genai 2.25.0
+pandas
+requests
+beautifulsoup4
+python-dotenv
+google-genai

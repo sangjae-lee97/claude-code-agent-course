@@ -20,11 +20,91 @@ STEP 08 기본 분석 / 관련 공고 필터링         → DONE  (실데이터:
 STEP 09 Gemini API 연동                    → DONE  (준비·연결 테스트: 07-H ~ 07-I, 실제 공고 요약: STEP 09 셀)
 STEP 10 Gemini 결과 검증                    → DONE  (에스코어 1건, 15개 항목 비교, 불일치 0)
 STEP 11 Markdown 보고서 생성                → DONE  (reports/ax_job_report.md, 3331자)
-STEP 12 Slack 발송                          → NOT_STARTED
-STEP 13 ~ 18                               → NOT_STARTED
+STEP 12 Slack 발송                          → DONE  (공고 5건 상세 정보 Slack 전송, 사용자 확인 완료)
+STEP 13 Gmail 발송                          → DONE  (자기 자신에게 1회 발송, 받은편지함 도착 사용자 확인)
+STEP 14 함수화                              → DONE  (src/ 7개 파일, 로컬 함수 검증, 외부 요청 0회)
+STEP 15 main.py 통합                        → DONE  (main.py 생성, main(dry_run=True) 흐름 검증, 외부 요청 0회)
+STEP 16 로컬 전체 실행 검증                  → DONE  (python main.py 1회 성공, Slack·Gmail 실제 도착 사용자 확인)
+STEP 17 GitHub Actions 수동 실행             → IN_PROGRESS  (workflow/requirements 준비 완료, GitHub Secrets 등록 및 수동 실행 대기)
+STEP 18 GitHub Actions 주간 실행             → NOT_STARTED
 ```
 
-**현재 공식 진행 위치: STEP 12 Slack 발송 (NOT_STARTED)**
+**현재 공식 진행 위치: STEP 17 GitHub Actions 수동 실행 (IN_PROGRESS)**
+
+STEP 17 진행 상황:
+
+```text
+완료 (workflow/requirements 준비 완료):
+- 저장소 루트 .github/workflows/ax-job-agent.yml ("AX Job Agent - Manual Run")
+  workflow_dispatch만, contents: read, ubuntu-latest, Python 3.14, working-directory chapter11/ax-job-agent,
+  Secrets 4개를 환경변수로 주입, pip install -r requirements.txt → python main.py, commit/push 없음
+- chapter11/ax-job-agent/requirements.txt (pandas, requests, beautifulsoup4, python-dotenv, google-genai)
+- src/reporter.py 8장 기본 문구: "Slack / Gmail 발송" → "GitHub Actions에서 자동 실행 검증"
+- Notebook STEP 17 정적 검증 통과 (외부 요청 0회)
+
+남은 작업 (사용자):
+- GitHub Repository Secrets 4개 등록 → 변경 사항 push → Actions에서 Run workflow 1회
+- workflow 성공, Slack·Gmail 실제 도착, 로그에 비밀값 노출 없음 확인 → 확인 후 STEP 17 DONE
+```
+
+STEP 16 결과 요약 (DONE):
+
+```text
+- src/reporter.py 검증 문구 수정: 5장 "이번 실행에서 Gemini가 생성한 설명(검증 전)" / 6장 "[과거 검증 기록]"(STEP 10 에스코어 당시 응답)
+- python main.py 1회 실행 → 종료 코드 0, 12단계 모두 완료
+  수집 5건(결측 0, 중복 0) / 신규 0건 / history 5 → 5 / 관련 5건 / Gemini 2회 호출(GS리테일 성공, 에스코어 503 실패, 파이프라인 계속 진행)
+  / 보고서 3674자 저장 / Slack HTTP 200 ok / Gmail SMTP 성공 / 비밀값 노출 없음
+- 사용자 확인: Slack 실제 채널 도착, Gmail 실제 받은편지함 도착
+```
+
+STEP 15 결과 요약 (DONE):
+
+```text
+- main.py 생성 (프로젝트 루트): main(dry_run=False), if __name__ == "__main__": main()
+- src 함수를 순서대로 연결: 수집 → 전처리 → 신규 판별/이력 업데이트 → 필터 → 분석 → Gemini → 보고서 → Slack 메시지
+  → (실제 실행 시) history·보고서 저장 → Slack 발송 → Gmail 발송
+- main(dry_run=True) 검증: history CSV 5건 입력, clean 5, 신규 0, 필터 5, 분석 동일, 보고서 2662자, Slack 1398자
+- JobKorea·Gemini·Slack·Gmail 호출 0회, history·report 체크섬 동일, 비밀값 노출 없음, src 수정 없음
+```
+
+STEP 14 결과 요약 (DONE):
+
+```text
+- src/ 생성: __init__.py, crawler.py, preprocess.py, analyzer.py, gemini_client.py, reporter.py, notifier.py
+- Notebook 검증 로직을 동작 변경 없이 함수로 분리 (리팩터링)
+- 로컬 데이터(jobs_history.csv 읽기 전용) 검증: clean 5→5, 신규 0, 분석 값 이전과 동일,
+  안전 키워드 8/8, 필터 5/5, 보고서 문자열 생성, Slack 메시지 = 사용자 최종본과 동일
+- 외부 요청 함수(collect_jobs, summarize_with_gemini, send_slack, send_email)는 callable 확인만
+- 실제 외부 요청 0회 (네트워크 차단 상태로 검증), history CSV·보고서 변경 없음
+```
+
+STEP 13 결과 요약 (DONE):
+
+```text
+- Notebook "STEP 13. Gmail 발송" 3셀 (보고서 읽기, Plain Text 메일, SMTP_SSL 1회 발송)
+- 사용자가 .env에 GMAIL_USER / GMAIL_APP_PASSWORD(앱 비밀번호) 입력 후 실행 (사용자 확인 결과):
+  GMAIL_USER·GMAIL_APP_PASSWORD 설정 성공, 보고서 3331자 읽기, 이메일 본문 3403자,
+  Gmail SMTP 발송 성공, 발송 횟수 1, 실제 Gmail 받은편지함 도착 확인
+```
+
+STEP 12 결과 요약 (DONE):
+
+```text
+완료:
+- 1차 전송 (STEP 12. Slack 발송 셀, 사용자가 VS Code에서 실행):
+  SLACK_WEBHOOK_URL 설정, 실제 채널 도착, 한글 정상, 보고서 전체 전달 — 사용자 확인
+  문제: 일반 Markdown(#, ##, **굵게**, 표, 일부 링크, 역슬래시)이 Slack에서 기호 그대로 보임
+- 보완 전송 1 (STEP 12. Slack 메시지 포맷 보완 셀): Slack 전용 요약 메시지(1047자, 공고 5건) 1회 재전송
+  → HTTP 200 / 응답 "ok", Webhook URL 미노출
+- 보완 전송 2 (STEP 12. Slack 메시지 포맷 보완 (공고별 상세 정보) 셀):
+  공고 5건 × CSV 컬럼 9개 전부 표시(1393자) 1회 전송 → HTTP 200 / 응답 "ok", Webhook URL 미노출
+- 보완 전송 3 (STEP 12. Slack 메시지 포맷 보완 (공고 URL 표시) 셀):
+  공고마다 "공고 URL: https://..." 문자열 추가(1703자) 1회 전송 → HTTP 200 / 응답 "ok", Webhook URL 미노출
+
+- 사용자 최종 확인 (Slack 화면): 메시지 도착, 공고 5건 모두 표시, 회사명·제목·경력·지역·지원 시작일·마감일·
+  검색어·수집 시각·실제 공고 URL 표시, 한글 정상, 마지막 제한 사항까지 표시
+- URL이 2번 보이던 부분은 사용자가 직접 수정 (공고 URL 표시 셀에서 "공고 보기" 링크 줄 삭제)
+```
 
 STEP 11 결과 요약:
 
@@ -59,9 +139,9 @@ STEP 09 결과 요약:
 다음 작업:
 
 ```text
-STEP 12 Slack 발송
-
-(참고) 발송할 보고서: reports/ax_job_report.md
+STEP 17 GitHub Actions 수동 실행 (IN_PROGRESS)
+GitHub Secrets 4개 등록 → push → Actions 탭에서 "AX Job Agent - Manual Run" Run workflow 1회
+실패해도 바로 다시 실행하지 않고 로그를 먼저 확인한다. STEP 18(주간 schedule)은 STEP 17 DONE 이후에만 시작한다.
 (참고) STEP 09에서 GS리테일 공고는 503 오류로 응답을 받지 못했고, STEP 10은 에스코어 1건만 검증했다.
 Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → 실행 결과 해석/분석/요약(Markdown) 3셀 패턴을 따른다.
 앞으로는 07-J, 07-K처럼 세부 번호를 늘리지 않고 원래 STEP 번호(STEP 09, STEP 10 …)를 사용한다.
@@ -85,12 +165,12 @@ Notebook 작성은 항상 작업 계획(Markdown) → 실제 코드(Code) → �
 | 09 | Gemini API 연동 | ✅ DONE | 일부 공고 요약 성공 | 07-H, 07-I (준비·연결 테스트), STEP 09 (실제 공고 요약) |
 | 10 | Gemini 결과 검증 | ✅ DONE | 원문과 AI 결과 비교 | STEP 10 (에스코어 1건) |
 | 11 | Markdown 보고서 생성 | ✅ DONE | reports에 보고서 생성 | STEP 11 (`reports/ax_job_report.md`) |
-| 12 | Slack 발송 | ⬜ NOT_STARTED | 실제 채널 도착 확인 | — |
-| 13 | Gmail 발송 | ⬜ NOT_STARTED | 실제 메일 도착 확인 | — |
-| 14 | 함수화 | ⬜ NOT_STARTED | Notebook 코드를 src로 분리 | — |
-| 15 | main.py 통합 | ⬜ NOT_STARTED | 전체 순서 연결 | — |
-| 16 | 로컬 전체 실행 검증 | ⬜ NOT_STARTED | `python main.py` 성공 | — |
-| 17 | GitHub Actions 수동 실행 | ⬜ NOT_STARTED | Run workflow 성공 | — |
+| 12 | Slack 발송 | ✅ DONE | 실제 채널 도착 확인 | STEP 12 발송 / 포맷 보완 / 공고별 상세 / 공고 URL 표시 (사용자 확인 완료) |
+| 13 | Gmail 발송 | ✅ DONE | 실제 메일 도착 확인 | STEP 13 (1회 발송, 사용자 수신 확인) |
+| 14 | 함수화 | ✅ DONE | Notebook 코드를 src로 분리 | STEP 14 (`src/` 7개 파일, 로컬 검증) |
+| 15 | main.py 통합 | ✅ DONE | 전체 순서 연결 | STEP 15 (`main.py`, dry_run 검증) |
+| 16 | 로컬 전체 실행 검증 | ✅ DONE | `python main.py` 성공 | STEP 16 (실행 성공, Slack·Gmail 도착 사용자 확인) |
+| 17 | GitHub Actions 수동 실행 | ⏳ IN_PROGRESS | Run workflow 성공 | STEP 17 (workflow 준비·정적 검증, Secrets 등록·수동 실행 대기) |
 | 18 | GitHub Actions 주간 실행 | ⬜ NOT_STARTED | schedule 등록 | — |
 
 공식 STEP 04~07의 완료 판단은 **실데이터 세부 검증(07-A ~ 07-D) 결과**를 기준으로 한다.
@@ -298,6 +378,201 @@ Notebook의 `STEP 07-A` ~ `STEP 07-I` 셀은 개발 과정의 상세 실험 기�
 - 일반화 표현("시장 전체", "대부분의 기업" 등) 없음 확인
 - 주의: 셀을 다시 실행하면 보고서 파일을 덮어씀
 
+### STEP 12 Slack 발송 (완료)
+
+- Notebook 셀 제목: `# STEP 12. Slack 발송`, Notebook 마지막에 3셀 세트 추가 (기존 셀 수정 없음)
+- 코드 흐름:
+  - `.env` 로드 → `SLACK_WEBHOOK_URL`은 "설정됨 / 미설정"만 출력 (값 미출력)
+  - `reports/ax_job_report.md` 읽기 (수정 없음, 체크섬 동일) — 3331자
+  - Markdown 링크만 Slack 형식으로 변환: `[링크](URL)` → `<URL|링크>` (5개), 다른 문법은 변환하지 않음
+  - 단순 `{"text": ...}` payload, Webhook URL이 있을 때만 `requests.post` **1회** (재시도 없음)
+  - 오류 시 오류 메시지 안의 Webhook URL은 `***`로 가림
+- 실제 실행 결과: `.env`에 `SLACK_WEBHOOK_URL=` 줄은 있으나 **값이 비어 있음** → **Slack 요청 0회**
+- 가짜 Webhook 주소 + 가짜 `requests.post`로 흐름만 점검 (실제 네트워크 요청 없음):
+  요청 1회에서 멈춤, 남은 Markdown 링크 0개, 메시지 3375자
+- 예상 표시 문제 (사용자 확인 필요): Slack `text` 메시지는 Markdown 표·`#` 제목·`**` 굵게를 그대로 기호로 보여 줄 수 있음
+
+1차 전송 (사용자 실행):
+- 사용자가 `.env`에 `SLACK_WEBHOOK_URL`을 입력하고 VS Code에서 STEP 12 셀 실행
+- 결과 (사용자 확인): 실제 채널 도착, 한글 정상, 보고서 전체 내용 전달 성공
+- 문제: 일반 Markdown 원문을 그대로 보내서 Slack에서 `#`/`##`, `**굵게**`, Markdown 표, 일부 링크, 역슬래시가 기호 그대로 보임
+- 참고: Notebook 파일에 저장된 STEP 12 셀 출력은 Claude Code 실행 시점("미설정")의 것 (사용자 실행 출력은 파일에 저장되지 않음)
+
+보완 전송 — `# STEP 12. Slack 메시지 포맷 보완` 셀 (Notebook 마지막 3셀 추가, 기존 STEP 12 셀 수정 없음):
+- 보고서 전체 대신 **Slack 전용 요약 메시지**를 새로 구성 (보고서 재생성 없음)
+  - `jobs_history.csv`(읽기 전용)로 분석 기준·회사별·지역별 공고 수·날짜 범위 다시 계산
+  - Gemini 검증 결과는 STEP 10 값(일치 7 / 의미상 일치 3 / 불일치 0 / 검증 불가 5)
+  - 주요 공고 5건 (수집 순서 그대로, 추천 순위 없음), 회사명·제목·`<URL|공고 보기>` 링크
+  - 제한 사항 5개
+- Slack mrkdwn 최소 문법만 사용: `*굵게*`, `•`, `<URL|표시문구>` — `#`, `**`, 표, `[링크](URL)` 미사용 (전송 전 검사로 확인)
+- 회사명·제목의 `&`, `<`, `>`는 Slack 규칙대로 `&amp;` 등으로 변환 (`HRD & AX`)
+- 메시지 **1047자**, Slack 요청 **1회** (자동 재시도 없음)
+- 결과: **HTTP 200 / 응답 본문 "ok"**, 저장된 셀 출력에 Webhook URL 없음 확인
+- 보고서 파일·history CSV 체크섬 동일
+- 사용자 확인 후 추가 요청: 공고별로 CSV의 정보를 가능한 한 모두 표시
+
+보완 전송 2 — `# STEP 12. Slack 메시지 포맷 보완 (공고별 상세 정보)` 셀 (Notebook 마지막 3셀 추가, 기존 셀 수정 없음):
+- 공고 5건을 CSV 순서 그대로 `*번호. 회사명*` + `•` 항목 8개 + `<URL|공고 보기>` 형식으로 표시
+  (공고 제목, 경력, 지역, 지원 시작일, 지원 마감일, 검색어, 수집 시각, 링크 — CSV 컬럼 9개 전부)
+- 메시지 첫 부분에 "공고 번호는 수집 순서이며 추천 순위가 아닙니다" 안내
+- Gemini 검증 결과, 제한 사항 포함, Slack mrkdwn 최소 문법만 사용 (전송 전 검사: `#`, `**`, 표, `[..](..)` 없음, 링크 5개)
+- 메시지 **1393자**, Slack 요청 **1회** → **HTTP 200 / "ok"**, Webhook URL 미노출, 보고서·CSV 체크섬 동일
+- 참고: 5건 모두 수집 시각이 `2026-09-23 14:00:39`로 같음 (STEP 07-D에서 한 번에 저장)
+- 사용자 추가 요청: "공고 보기" 링크와 함께 실제 URL 문자열도 표시
+
+보완 전송 3 — `# STEP 12. Slack 메시지 포맷 보완 (공고 URL 표시)` 셀 (Notebook 마지막 3셀 추가, 기존 셀 수정 없음):
+- 보완 전송 2 형식에 공고마다 `• 공고 URL: https://...` 줄 추가 (history CSV `job_url` 값 그대로), `<URL|공고 보기>` 링크 유지
+- 전송 전 검사: 표시된 URL 5개가 CSV 값·순서와 완전히 같음, 링크 5개, `#`·`**`·표 없음
+- 메시지 **1703자**, Slack 요청 **1회** → **HTTP 200 / "ok"**, Webhook URL 미노출, 보고서·CSV 체크섬 동일
+- 사용자 최종 확인 완료 (Slack 화면): 도착, 공고 5건, 회사명·제목·경력·지역·지원 시작일·마감일·검색어·수집 시각·
+  실제 공고 URL 표시, 한글 정상, 마지막 제한 사항까지 표시 → **STEP 12 DONE**
+- 사용자 직접 수정: URL이 2번 보이던 부분 → "공고 URL 표시" 셀에서 `• <URL|공고 보기>` 줄 삭제 (공고 URL 문자열만 남김)
+
+### STEP 13 Gmail 발송 (완료)
+
+- Notebook 셀 제목: `# STEP 13. Gmail 발송`, Notebook 마지막에 3셀 세트 추가 (기존 셀 수정 없음)
+- 코드 흐름:
+  - `.env` 로드 → `GMAIL_USER`, `GMAIL_APP_PASSWORD`는 "설정됨 / 미설정"만 출력 (주소·비밀번호·일부·길이 미출력)
+  - 둘 중 하나라도 없으면 SMTP 연결·발송 없이 멈춤
+  - `reports/ax_job_report.md` 읽기 (수정 없음) — 3331자
+  - 제목 `[AX Job Agent] AX 채용 분석 보고서`, 본문은 안내 문장 + 보고서 Markdown (Plain Text, 3403자)
+  - 발신 = 수신 = `GMAIL_USER` (다른 주소 하드코딩 없음)
+  - `smtplib.SMTP_SSL("smtp.gmail.com", 465)` → `login` → `send_message` **1회** (자동 재시도 없음)
+  - 오류 시 오류 메시지 안의 주소·비밀번호는 `***`로 가림
+  - 표준 라이브러리만 사용 (`smtplib`, `email.message.EmailMessage`) — 추가 설치 없음
+- 실제 실행 결과: `.env`에 두 줄은 있으나 **값이 비어 있음** → **발송 0회**, 오류 없음, 인증정보 노출 없음
+- 가짜 계정·가짜 SMTP 서버로 흐름만 점검 (네트워크 없음): 1회 발송, 한글 제목 복원, UTF-8 본문,
+  보고서 전체·공고 URL 5개 포함, From == To
+- 사용자 실행 (인증정보 입력 후 STEP 13 셀 1회 실행, 사용자 확인 결과):
+  GMAIL_USER·GMAIL_APP_PASSWORD 설정 성공, 보고서 3331자, 이메일 본문 3403자,
+  **Gmail SMTP 발송 성공, 발송 횟수 1, 실제 Gmail 받은편지함 도착 확인** → STEP 13 DONE
+- 참고: Notebook 파일에 저장된 STEP 13 셀 출력은 Claude Code 실행 시점("미설정")의 것
+
+### STEP 14 함수화 (완료)
+
+- `src/` 생성 (7개 파일) — Notebook 검증 로직을 동작 변경 없이 함수로 분리 (리팩터링):
+
+| 파일 | 함수 | 옮겨 온 로직 |
+|---|---|---|
+| `__init__.py` | (빈 파일) | 패키지 인식용 |
+| `crawler.py` | `collect_jobs(search_keyword="ax", max_jobs=5)` + `fetch_search_page`, `extract_application_periods`, `parse_job_cards` | STEP 07-A |
+| `preprocess.py` | `clean_jobs(df)`, `find_new_jobs(current_df, history_df)`, `update_history(current_df, history_df)` | STEP 06, 07-C, 07-D |
+| `analyzer.py` | `analyze_jobs(df)`, `find_matched_keywords_safe(title)`, `filter_relevant_jobs(df)`, `RELEVANCE_KEYWORDS` | STEP 07-E, 07-F, 07-G |
+| `gemini_client.py` | `summarize_with_gemini(df, client, model="gemini-3.6-flash", max_jobs=2)`, `build_prompt(job)` | STEP 09 |
+| `reporter.py` | `create_report(jobs_df, analysis, gemini_summary=None, validation_summary=None, ...)`, `save_report(report_text, report_path)` | STEP 11 |
+| `notifier.py` | `build_slack_message(jobs_df, validation_summary=None)`, `send_slack(message, webhook_url)`, `send_email(report_text, gmail_user, gmail_app_password, subject=...)` | STEP 12, 13 |
+
+- 유지한 규칙: posted_date/closing_date = applicationPeriod.start/end (createdAt 미사용), job_url 기준 식별·history(keep="last"),
+  User-Agent 1회만 재요청(우회 없음), 영문 키워드 안전 매칭, Gemini "제공된 정보만/확인 불가", Slack 공고 URL 1회 표시(사용자 최종본),
+  인증정보는 인자로만 받음(하드코딩 없음), 발송 함수는 1회·자동 재시도 없음, 오류 메시지 속 비밀값은 `***`로 가림
+- 함수는 결과를 반환하고 파일 저장은 분리 (`save_report`, history CSV 저장은 main.py 단계에서 결정)
+- 함수화하면서 달라진 점:
+  - `create_report()`의 5장은 `summarize_with_gemini()` 결과 1건의 응답 원문을 인용 블록으로 싣는다 (STEP 11은 응답을 소제목별로 나눠 적었음)
+  - `create_report()` / `build_slack_message()`의 검증 결과와 추가 제한 사항은 인자(`validation_summary`, `extra_limitations`)로 받는다
+  - `summarize_with_gemini()`는 실패한 공고에 `error`(오류 종류: 메시지)를 함께 담아 반환한다 (Notebook은 print로 출력)
+- Notebook `# STEP 14. 함수화` 3셀 추가 (기존 셀 수정 없음) — 로컬 데이터(`jobs_history.csv` 읽기 전용) 검증 결과:
+  - `clean_jobs`: 5 → 5, 중복 URL 0, 컬럼 유지
+  - `analyze_jobs`: 이전 STEP 값과 동일 (NAVER 2 등, 시작일 2026-07-01 ~ 2026-09-21, 마감일 2026-09-29 10:00 ~ 2026-10-25 23:00)
+  - `find_matched_keywords_safe`: 대표 테스트 **8/8 통과**
+  - `filter_relevant_jobs`: 5 → 5 (모두 AX)
+  - `find_new_jobs`: 현재 vs 같은 history → 신규 **0건**
+  - `create_report`: str, 2514자 (Gemini 결과 미포함 상태), 주요 제목 9개 포함 — 파일 저장 안 함
+  - `build_slack_message`: 1398자, 공고 5건·날짜·URL 포함, "공고 보기" 없음 — 사용자 최종 Slack 메시지와 글자까지 동일(별도 비교)
+  - 외부 함수 `collect_jobs`, `summarize_with_gemini`, `send_slack`, `send_email`, `save_report`: callable True (실행 안 함)
+- 네트워크 없이 추가 확인 (Notebook 미저장): 저장해 둔 실제 검색 결과 HTML 파싱 결과 = history CSV(수집 시각 제외),
+  `build_prompt` = STEP 09 프롬프트, 가짜 client/서버로 호출 횟수(Gemini 최대 2회, Slack·Gmail 1회)와 비밀값 마스킹 확인
+- 실제 외부 요청 **0회** (검증 시 네트워크 연결 차단·계수: 0), history CSV·`reports/ax_job_report.md` 체크섬 동일
+- `src/__pycache__/`는 `.gitignore`의 `__pycache__/` 규칙으로 Git에서 제외됨
+
+### STEP 15 main.py 통합 (완료)
+
+- `main.py` 생성 (프로젝트 루트) — 설정 읽기와 실행 순서 연결만 담당, 로직은 src 함수 호출
+  - 경로: `PROJECT_ROOT = Path(__file__).resolve().parent`, `HISTORY_PATH`, `REPORT_PATH`, `ENV_PATH`
+  - 설정: `SEARCH_KEYWORD="ax"`, `MAX_JOBS=5`, `GEMINI_MODEL="gemini-3.6-flash"`, `GEMINI_MAX_JOBS=2`
+  - `VALIDATION_SUMMARY`: STEP 10 검증 결과(에스코어 1건, 15개 항목, 일치 7 / 의미상 일치 3 / 불일치 0 / 검증 불가 5)와 STEP 11 보고서의 검증 설명
+  - `main(dry_run=False)` 실행 순서:
+    [1] `.env` 로드(설정 여부만 출력) → [2] `collect_jobs()` → [3] `clean_jobs()` → [4] history 읽기 → `find_new_jobs()` / `update_history()`
+    → [5] `filter_relevant_jobs()` → [6] `analyze_jobs()` → [7] Gemini client 생성 + `summarize_with_gemini()`
+    → [8] `create_report()` → [9] `build_slack_message()` → [10] history CSV 저장 + `save_report()` → [11] `send_slack()` → [12] `send_email()`
+  - 인증정보 부족 처리: GEMINI_API_KEY 없으면 [7]에서 RuntimeError로 중단, Slack·Gmail 인증정보 없으면 해당 발송만 생략
+  - Gemini 실패 공고는 보고서 제한 사항에 "○○ 공고의 Gemini 호출은 실패했습니다" 로 추가 (`extra_limitations`)
+  - 결과 요약 dict 반환 (건수, 문자 수, 호출·발송 여부)
+- `dry_run=True`: JobKorea 대신 history CSV를 입력으로 사용, Gemini·Slack·Gmail 호출과 history·report 저장을 하지 않음
+- 설계 판단 (데이터 역할):
+  - `current_df`(이번 수집 전체) / `new_jobs_df`(신규) / `filtered_df`(관련 공고, 분석·Gemini 대상)를 변수로 분리
+  - 보고서·Slack 대상(`report_jobs_df`, `notify_jobs_df`)은 **이번 수집 전체**로 유지 — Notebook(STEP 07-E ~ 12)이 현재 공고 전체를 대상으로 했고,
+    "신규 공고만 알림" 동작은 아직 확정된 적이 없기 때문 (신규 공고 기준으로 바꿀지는 이후 Orchestrator가 결정)
+  - Gemini 대상은 `filtered_df` 앞 2건 (STEP 09 흐름), 보고서 5장에는 성공한 첫 응답
+- Notebook `# STEP 15. main.py 통합` 3셀 추가 (기존 셀 수정 없음) — `main(dry_run=True)` 결과:
+  - 환경변수 4개 "설정됨", 입력 5건, clean 5, 신규 0 (이력 5 → 5), 필터 5, 분석 동일(NAVER 2 등)
+  - 보고서 문자열 2662자 (Gemini 미호출로 5장 "결과 없음"), Slack 메시지 1398자
+  - 실행 전후 history CSV·report 체크섬 동일
+  - 검증 시 네트워크 차단 + 외부/저장 함수 호출 감지: 네트워크 연결 0회, `collect_jobs`·`summarize_with_gemini`·`send_slack`·`send_email`·`save_report`·`to_csv` 호출 0회
+- `main.py`에 비밀값 형식 문자열 없음, src 파일 수정 없음
+- STEP 16에서 확인할 점:
+  - 실제 실행은 history CSV와 `reports/ax_job_report.md`를 **덮어쓴다**
+  - `reporter`의 5장 문구 "STEP 10에서 원본 데이터와 비교 검증했습니다"가 고정되어 있어, 실제 실행에서 새로 받은 (검증 전) Gemini 응답에도 붙는다 → 표현 확인 필요 (STEP 16에서 수정)
+
+### STEP 16 로컬 전체 실행 검증 (완료)
+
+실행 전 수정 — `src/reporter.py` (검증 문구, 최소 수정. main.py·다른 src 수정 없음):
+- 5장 `[Gemini 생성 설명]`: "이번 실행에서 Gemini가 생성한 설명입니다. 이 응답은 아직 원본 데이터와 비교 검증하지 않았습니다."
+- 6장 `[과거 검증 기록]`(기존 `[STEP 10 검증 결과]`): "STEP 10에서 ○○ 공고의 당시 Gemini 응답을 원본과 비교한 기록 — 이번 실행의 새 응답 전체를 검증했다는 뜻은 아님"
+- 보고서 첫 부분 이름표 설명과 7장 제한 사항 문장도 같은 의미로 수정
+- 수정 후 네트워크 차단 상태에서 `create_report()`만 로컬 데이터로 호출해 문구 확인
+
+실행 전 상태 (체크섬만 기록, 백업은 Git 밖 임시 폴더):
+- 환경변수 4개(GEMINI_API_KEY, SLACK_WEBHOOK_URL, GMAIL_USER, GMAIL_APP_PASSWORD) 모두 설정됨
+- `jobs_history.csv`: 5행, SHA256 `14ddb83c…02fe`
+- `reports/ax_job_report.md`: 3331자, SHA256 `f0573bef…f5a6`
+
+실제 실행 — Terminal, 프로젝트 루트, `python main.py` **1회** (콘솔 한글 출력 오류 방지를 위해 `PYTHONIOENCODING=utf-8`만 설정), 종료 코드 **0**:
+- [2] JobKorea 수집 **5건** — 컬럼 9개, 결측 0, `job_url` 중복 0, 이전과 같은 5개 공고·같은 지원 시작일/마감일
+- [4] 신규 공고 **0건**, history 5건 → 5건 (같은 URL 중복 누적 없음, `collected_at`만 `14:00:39` → `16:31:15`로 갱신 — keep="last")
+- [5] 관련 공고 5건, [6] 분석 전체 5건
+- [7] Gemini **2회** 호출: GS리테일 **성공**, 에스코어 **실패** (`ServerError 503 UNAVAILABLE`, 서버 과부하) — 자동 재시도 없음, 파이프라인은 계속 진행
+- [8]·[10] 보고서 **3674자** 저장, 제목 + 8개 장, 5장에 GS리테일 새 응답("확인 불가" 4개 유지), 6장 과거 검증 기록, 7장에 에스코어 실패 기록
+- [11] Slack **1회**, HTTP 200 / ok
+- [12] Gmail **1회**, SMTP 발송 성공
+- 실행 후 SHA256: history `98e2e8ba…ca5a`, report `868fb846…28c4`
+- 비밀값 노출 없음 (출력·보고서·history·코드 확인)
+- Notebook `# STEP 16. 로컬 전체 실행 검증` 3셀 추가 — 코드 셀은 결과 파일을 읽기만 함 (main.py 재실행 없음, 네트워크 연결 0회)
+- 참고: 보고서 8장 "다음 단계"가 `create_report()` 기본값 "Slack / Gmail 발송"으로 남아 있어 실제 상태와 맞지 않음 (후속 수정 후보)
+- 사용자 최종 확인 완료: Slack 실제 채널 도착, Gmail 실제 받은편지함 도착 → **STEP 16 DONE**
+
+### STEP 17 GitHub Actions 수동 실행 (진행 중)
+
+준비한 파일 (Claude Code는 commit/push 하지 않음 — 사용자가 직접 올림):
+- `.github/workflows/ax-job-agent.yml` (저장소 루트 — GitHub 규칙상 workflow는 저장소 루트 `.github/workflows/`에 있어야 함)
+  - 이름 `AX Job Agent - Manual Run`, 트리거 `workflow_dispatch`만 (`schedule` 없음 — STEP 18)
+  - `permissions: contents: read`, `runs-on: ubuntu-latest`, `defaults.run.working-directory: chapter11/ax-job-agent`
+  - `env`: `GEMINI_API_KEY`, `SLACK_WEBHOOK_URL`, `GMAIL_USER`, `GMAIL_APP_PASSWORD` ← `${{ secrets.이름 }}`, `PYTHONIOENCODING: utf-8`
+  - steps: `actions/checkout@v4` → `actions/setup-python@v5` (Python `3.14`) → `pip install -r requirements.txt` → `python main.py`
+  - actions 버전은 이 저장소의 기존 workflow(fast-track-smoke, resource-smoke 등)와 같게 맞춤
+  - git commit/push 없음, Artifact 업로드 없음
+- `chapter11/ax-job-agent/requirements.txt`: `pandas`, `requests`, `beautifulsoup4`, `python-dotenv`, `google-genai`
+  - main.py·src의 외부 import(bs4, dotenv, google, pandas, requests)와 1:1 대응, jupyter·ipykernel 제외
+  - 버전 고정 없음 (로컬 검증 버전은 파일 주석에 기록: pandas 3.0.6, requests 2.34.2, beautifulsoup4 4.15.0, python-dotenv 1.2.3, google-genai 2.25.0)
+- `src/reporter.py`: `create_report()`의 `next_step_text` 기본값 "Slack / Gmail 발송" → "GitHub Actions에서 자동 실행 검증" (최소 수정, main.py 수정 없음)
+
+확인한 점:
+- `.env`가 없는 환경에서 `load_dotenv()`는 오류 없이 넘어가고 이미 주입된 환경변수를 유지 → GitHub Secrets를 `os.getenv()`로 읽음 (로컬 확인)
+- Notebook `# STEP 17. GitHub Actions 수동 실행` 3셀 — 정적 검증 모두 통과 (YAML 파싱, workflow_dispatch, schedule 없음, 권한 read, 경로,
+  Secret 이름 4개, `python main.py`, commit/push 없음, 비밀값 형식 문자열 없음, requirements와 import 일치), 외부 요청 0회
+  - "schedule 없음" 검사가 처음에는 주석 속 단어 때문에 False → 트리거 설정만 보도록 검사를 고쳐 True 확인
+- 기존 `resource-policy-guard.yml`은 chapter01~10만 검사하므로 chapter11 파일과 충돌하지 않음
+
+STEP 18에서 판단할 사항 (history / report 유지):
+- GitHub-hosted runner에서 갱신된 `data/processed/jobs_history.csv`와 `reports/ax_job_report.md`는 **실행이 끝나면 사라진다.**
+- STEP 17에서는 자동 commit/push를 하지 않으므로, 매번 checkout된(Git에 있는) history 기준으로 신규 판별이 된다.
+- 주간 자동 실행에서 신규 공고 판별이 의미 있으려면 history를 실행 사이에 유지하는 방법이 필요하다. (방식은 STEP 18에서 결정)
+
+예상 위험 (실제 결과를 그대로 기록할 것):
+- runner는 GitHub 서버 IP에서 실행되므로 JobKorea가 보안정책 페이지를 줄 수 있음 → `collect_jobs()` RuntimeError로 workflow 실패 가능. 우회하지 않음
+- Gemini 503은 개별 공고 실패로 기록되고 파이프라인 계속 진행 (자동 재시도 없음)
+
+상태: workflow/requirements 준비 완료, GitHub Secrets 등록 및 수동 실행 대기
+
 ### 실데이터 흐름 남은 특이사항
 
 - 일부 공고의 `applicationPeriod.end`가 `2070-01-01` — 의미 미검증 (상시채용 여부로 임의 해석하지 않음)
@@ -427,31 +702,28 @@ Claude Code 또는 Codex에 아래 범위만 전달합니다.
 프로젝트 경로: chapter11/ax-job-agent (브랜치 main)
 나는 Python 데이터 분석 초보자입니다.
 
-현재 단계는 STEP 12 Slack 발송입니다.
-STEP 01~11은 완료되었습니다 (docs/PROGRESS.md 참고).
-- STEP 09: 실제 공고 2건을 gemini-3.6-flash에 전달 → 에스코어 응답 수신, GS리테일 503 실패
-- STEP 10: 에스코어 응답을 원본 CSV와 비교 → 15개 항목 중 불일치 0
-- STEP 11: reports/ax_job_report.md 생성
+현재 단계는 STEP 17 GitHub Actions 수동 실행입니다.
+(workflow/requirements 준비 완료, GitHub Secrets 등록 및 수동 실행 대기)
+STEP 01~16은 완료되었습니다 (docs/PROGRESS.md 참고).
+- STEP 16: python main.py 로컬 실제 실행 성공, Slack·Gmail 도착 확인
+- STEP 17: .github/workflows/ax-job-agent.yml (workflow_dispatch), chapter11/ax-job-agent/requirements.txt 준비
 
 이번 작업만 수행해 주세요.
 
-Notebook 작성 규칙:
-- 모든 작업은 작업 계획(Markdown Cell) → 실제 코드(Code Cell) → 실행 결과 해석/분석/요약(Markdown Cell) 순서의 3셀 세트로 작성합니다.
-- 새 셀 제목은 원래 STEP 번호(STEP 12)를 사용합니다.
-
 목표:
-- 보고서 내용을 Slack으로 발송하고 실제 채널 도착을 확인합니다. (발송 방식과 범위는 Orchestrator가 정함)
+- 사용자가 GitHub Actions에서 Run workflow를 1회 실행한 결과(로그)를 확인하고 기록합니다.
 
 하지 말 것:
-- API Key / Webhook URL 출력
-- 불필요한 Gemini 호출 / 웹 재요청
-- Gmail 구현
-- main.py 작성
-- 다음 STEP 구현
+- schedule 추가 (STEP 18)
+- workflow에서 git commit/push, 불필요한 write 권한
+- Secret 값 출력·기록
+- JobKorea 우회 로직, Gemini 자동 재시도 추가
+- GitHub Actions 반복 실행
 
 완료 조건:
-- 실제 Slack 채널에 도착한 것을 사람이 직접 확인
-- 실행 결과 해석 Markdown Cell 작성
+- workflow 전체 성공, main.py 실행 성공
+- Slack·Gmail 실제 도착 사용자 확인
+- 로그에 비밀값 노출 없음
 ```
 
 ---
