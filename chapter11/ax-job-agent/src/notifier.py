@@ -105,8 +105,17 @@ def _heading(title, underline="-"):
 
 
 def _plain(text):
-    # Gemini 응답 안에 Markdown 굵게(**)나 제목(#)이 섞여 있어도 메일에는 기호 없이 보이도록 정리
-    text = str(text).replace("**", "")
+    """메일 본문에 Markdown 문법이 섞여 있어도 일반 텍스트로 보이도록 정리한다.
+
+    - [표시문구](URL) 링크 → URL 한 번만 (표시문구가 URL과 다르면 "표시문구 (URL)")
+    - \\. \\- \\~ 같은 Markdown 이스케이프 → 역슬래시 제거
+    - **굵게** → 기호 제거, 줄 맨 앞 # 제목 → 기호 제거
+    """
+    text = str(text)
+    text = re.sub(r"\[([^\]]+)\]\((https?://[^)\s]+)\)",
+                  lambda m: m.group(2) if m.group(1).strip() == m.group(2) else f"{m.group(1)} ({m.group(2)})", text)
+    text = re.sub(r"\\([\\.\-~*_#\[\]()!>+`|])", r"\1", text)
+    text = text.replace("**", "")
     return re.sub(r"(?m)^#+\s*", "", text)
 
 
@@ -156,7 +165,7 @@ def build_email_text(run_summary):
     validation_text = "\n".join(run_summary["gemini_validation_lines"])
     limitation_text = "\n".join(f"- {line}" for line in run_summary["limitations"])
 
-    return f"""안녕하세요.
+    body = f"""안녕하세요.
 
 AX 채용정보 Agent에서 생성한 분석 보고서입니다.
 
@@ -200,6 +209,8 @@ AX/AI 1차 필터 통과: {run_summary['filter_pass_count']}건 (매칭 키워�
 
 {limitation_text}
 """
+    # 마지막으로 본문 전체를 한 번 더 일반 텍스트로 정리한다 (Markdown 링크·이스케이프·굵게 기호가 섞여 들어와도 제거)
+    return _plain(body)
 
 
 def send_email(email_text, gmail_user, gmail_app_password, subject=DEFAULT_EMAIL_SUBJECT, timeout=15):

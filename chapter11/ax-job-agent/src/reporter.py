@@ -28,10 +28,23 @@ def short_gemini_error(error):
     return f"{error.split(':')[0].strip()} — Gemini 호출 실패"
 
 
-def build_run_summary(jobs_df, analysis, gemini_results, historical_validation=None):
-    """이번 실행 결과를 Slack·Gmail·보고서가 함께 쓰는 dict로 정리한다."""
+def collection_scope_text(total, max_jobs=None):
+    """수집 범위 문장. 실제 수집 건수와 설정 최대 건수(max_jobs)로만 표현한다. (1페이지 전체 공고 수는 추측하지 않음)"""
+    if max_jobs is None:
+        return f"JobKorea 검색결과 1페이지에서 상위 {total}건을 수집했습니다."
+    if total >= max_jobs:
+        return f"JobKorea 검색결과 1페이지에서 상위 {total}건을 수집했습니다. (설정 최대 {max_jobs}건)"
+    return f"JobKorea 검색결과 1페이지에서 {total}건을 수집했습니다. (설정 최대 {max_jobs}건보다 적게 수집됨)"
+
+
+def build_run_summary(jobs_df, analysis, gemini_results, historical_validation=None, max_jobs=None):
+    """이번 실행 결과를 Slack·Gmail·보고서가 함께 쓰는 dict로 정리한다.
+
+    max_jobs: 수집 설정 최대 건수 (main.py의 MAX_JOBS). 수집 범위 문장에만 사용한다.
+    """
     total = analysis["total_jobs"]
     keywords = ", ".join(analysis["keyword_counts"].keys())
+    scope_text = collection_scope_text(total, max_jobs)
 
     # AX/AI 1차 필터 결과 (이번 수집 데이터 기준)
     matched = jobs_df["job_title"].apply(find_matched_keywords_safe)
@@ -61,13 +74,13 @@ def build_run_summary(jobs_df, analysis, gemini_results, historical_validation=N
     limitations = [
         f"현재 수집 데이터는 {total}건입니다.",
         f"검색어는 {keywords} {len(analysis['keyword_counts'])}개입니다.",
-        "검색 결과 한 페이지의 일부 공고만 사용했습니다.",
+        scope_text,
         "상세 공고 페이지 본문은 수집하지 않았습니다. (Gemini가 보는 정보는 검색 결과 메타데이터 수준)",
         "상세 업무·기술 스택·자격요건·우대사항은 확인하지 못했습니다.",
         "Gemini API는 개별 호출에서 503 UNAVAILABLE이 발생할 수 있으며, 일부 호출이 실패해도 파이프라인은 계속 진행됩니다.",
         "이번 실행의 Gemini 응답은 원본 데이터와 자동 대조 검증을 하지 않았습니다. (검증 전)",
         f"STEP 10 검증은 과거 {history_scope} 응답에 대한 개발 기록입니다.",
-        f"현재 {total}건 결과를 전체 채용시장 경향으로 일반화하면 안 됩니다.",
+        f"현재 {total}건은 검색결과 1페이지 범위의 결과이며, 전체 채용시장을 대표하지 않습니다.",
     ]
 
     return {
@@ -82,6 +95,7 @@ def build_run_summary(jobs_df, analysis, gemini_results, historical_validation=N
         "gemini_validation_status": validation_status,
         "gemini_validation_lines": validation_lines,
         "limitations": limitations,
+        "scope_text": scope_text,
     }
 
 
@@ -170,7 +184,7 @@ def create_report(run_summary, historical_validation=None,
 
 - 검색어: {keywords}
 - 분석 대상 공고 수: {total}건
-- 수집 기준: JobKorea 검색 결과 1페이지의 상위 {total}건 (검색 결과 페이지에 보이는 정보만 사용, 상세 페이지 미수집)
+- 수집 기준: {run_summary['scope_text']} (검색 결과 페이지에 보이는 정보만 사용, 상세 페이지 미수집)
 - 데이터 파일: `{data_source}`
 - 지원 시작일 범위: {analysis['posted_date_min']} ~ {analysis['posted_date_max']}
 - 지원 마감일 범위: {analysis['closing_date_min']} ~ {analysis['closing_date_max']}

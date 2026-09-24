@@ -30,7 +30,7 @@ HISTORY_PATH = PROJECT_ROOT / "data" / "processed" / "jobs_history.csv"
 REPORT_PATH = PROJECT_ROOT / "reports" / "ax_job_report.md"
 
 SEARCH_KEYWORD = "ax"
-MAX_JOBS = 5
+MAX_JOBS = 20  # JobKorea 검색결과 1페이지에서 최대 20건 (페이지네이션 없음)
 GEMINI_MODEL = "gemini-3.6-flash"
 GEMINI_MAX_JOBS = 2
 
@@ -112,7 +112,8 @@ def main(dry_run=False):
                 print(f"    - {r['company_name']} 실패: {r['error']}")
 
     # 이번 실행 요약 — 보고서·Slack·Gmail이 모두 이 값만 사용한다 (알림 대상도 이번 수집 전체)
-    run_summary = build_run_summary(report_jobs_df, analysis, gemini_results, HISTORICAL_VALIDATION_SUMMARY)
+    run_summary = build_run_summary(report_jobs_df, analysis, gemini_results, HISTORICAL_VALIDATION_SUMMARY,
+                                    max_jobs=MAX_JOBS)
 
     # [8] 보고서 문자열 생성 (과거 STEP 10 기록은 부록으로만 표시)
     report_text = create_report(run_summary, historical_validation=HISTORICAL_VALIDATION_SUMMARY)
